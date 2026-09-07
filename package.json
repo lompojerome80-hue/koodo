@@ -4,6 +4,9 @@
   "private": true,
   "description": "Koodo — the market at your fingertips. Premium PWA for farmers & buyers.",
   "type": "module",
+  "engines": {
+    "node": ">=20 <24"
+  },
   "workspaces": [
     "server",
     "client"
