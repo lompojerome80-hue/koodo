@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Koodo — le marché à portée de main</title>
+<meta name="description" content="Prix du marché et vente directe pour les producteurs, même hors ligne." />
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json" />
+<meta name="theme-color" content="#1B4332" />
+<link rel="icon" href="./icon-192.png" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Koodo" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --green:#1B4332; --paper:#FBF6EC; --card:#FFFDF8; --border:#E7DCC5;
+    --orange:#E8871E; --ink:#2D2A26; --muted:#8C8371; --muted2:#A69C87;
+    --alert:#B8471E; --alertbg:#7A2E12;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--paper); overscroll-behavior:none;}
+  body{font-family:'Work Sans',sans-serif; color:var(--ink);}
+  .font-display{font-family:'Fraunces',serif;}
+  .font-mono{font-family:'JetBrains Mono',monospace;}
+  #app{max-width:420px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; position:relative; background:var(--paper);}
+
+  .statusbar{display:flex; align-items:center; justify-content:space-between; padding:8px 16px; font-size:12px; font-weight:500; background:var(--green); color:#EFE7D6; transition:background .2s;}
+  .statusbar.offline{background:var(--alertbg); color:#F3E4D6;}
+  .statusbar button{background:none; border:none; color:inherit; font:inherit; display:flex; align-items:center; gap:6px; cursor:pointer; padding:0;}
+
+  header.top{padding:20px 20px 16px; background:var(--green); color:var(--paper); border-radius:0 0 28px 28px; box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .brand .logo{width:36px; height:36px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .brand h1{font-size:21px; margin:0; line-height:1.1;}
+  .brand p{font-size:11px; margin:2px 0 0; color:#CFE0D3;}
+  .install-btn{margin-top:12px; width:100%; background:var(--orange); color:var(--ink); border:none; border-radius:10px; padding:10px; font-weight:600; font-size:13px; display:none; align-items:center; justify-content:center; gap:6px; cursor:pointer;}
+  .install-btn.show{display:flex;}
+
+  main{flex:1; padding:16px 16px 96px; overflow-y:auto;}
+  .chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; margin:0 -4px; padding-left:4px;}
+  .chip{flex-shrink:0; padding:7px 14px; border-radius:999px; font-size:14px; font-weight:500; border:1px solid var(--border); background:var(--card); color:#5C5548; cursor:pointer;}
+  .chip.active{background:var(--orange); border-color:var(--orange); color:var(--ink);}
+
+  .best-card{margin-top:4px; border-radius:16px; background:var(--green); color:var(--paper); padding:16px; display:flex; align-items:center; justify-content:space-between;}
+  .best-card .eyebrow{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:#CFE0D3; margin:0;}
+  .best-card .price{font-size:26px; margin:2px 0 0;}
+  .best-card .price span{font-size:14px; font-weight:400;}
+  .best-card .market{font-size:11px; color:#CFE0D3; margin:2px 0 0;}
+  .best-icon{width:44px; height:44px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+
+  .section-label{font-size:12px; font-weight:600; color:#5C5548; text-transform:uppercase; letter-spacing:.02em; margin:20px 0 8px;}
+
+  .row-list{display:flex; flex-direction:column; gap:8px;}
+  .row-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .row-title{display:flex; align-items:center; gap:6px; min-width:0;}
+  .row-title p{margin:0; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .badge-best{flex-shrink:0; font-size:9px; font-weight:700; background:rgba(232,135,30,.2); color:#B8630E; padding:2px 6px; border-radius:999px;}
+  .row-meta{display:flex; align-items:center; gap:12px; margin-top:4px; font-size:11px; color:var(--muted);}
+  .row-meta span{display:flex; align-items:center; gap:4px;}
+  .row-meta .old{color:var(--alert);}
+  .row-price{font-weight:700; font-size:18px; flex-shrink:0; margin:0;}
+
+  .note{font-size:11px; color:var(--muted2); margin-top:16px; line-height:1.5;}
+
+  form.sell-form{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:12px;}
+  .field label{font-size:11px; color:var(--muted); font-weight:500; display:block; margin-bottom:4px;}
+  .field select, .field input{width:100%; background:var(--paper); border:1px solid var(--border); border-radius:8px; padding:9px 10px; font-size:14px; color:var(--ink); font-family:inherit;}
+  .field-row{display:flex; gap:12px;}
+  .field-row .field{flex:1;}
+  .publish-btn{width:100%; background:var(--orange); color:var(--ink); border:none; border-radius:8px; padding:11px; font-weight:600; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .publish-btn:active{transform:scale(.98);}
+
+  .offline-warn{font-size:11px; color:var(--alert); margin-top:8px; display:flex; align-items:center; gap:5px;}
+
+  .empty-state{background:var(--card); border:1px dashed var(--border); border-radius:12px; padding:20px; text-align:center;}
+  .empty-state p:first-child{font-size:14px; color:var(--muted); margin:0;}
+  .empty-state p:last-child{font-size:11px; color:var(--muted2); margin:4px 0 0;}
+
+  .offer-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; display:flex; align-items:center; justify-content:space-between;}
+  .offer-card p:first-child{margin:0; font-size:14px; font-weight:600;}
+  .offer-card p:last-child{margin:2px 0 0; font-size:12px; color:var(--muted);}
+  .status-pill{font-size:10px; font-weight:700; padding:4px 8px; border-radius:999px; display:flex; align-items:center; gap:4px; flex-shrink:0;}
+  .status-pill.synced{background:rgba(27,67,50,.1); color:var(--green);}
+  .status-pill.pending{background:rgba(232,135,30,.2); color:#B8630E;}
+
+  .profile-card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; display:flex; align-items:center; gap:12px;}
+  .avatar{width:48px; height:48px; border-radius:50%; background:var(--green); color:var(--paper); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-size:17px; flex-shrink:0;}
+  .info-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; font-size:13px; color:#5C5548; line-height:1.5; margin-bottom:8px;}
+
+  nav.bottom{position:absolute; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--border); display:flex; justify-content:space-around; padding:10px 8px;}
+  nav.bottom button{background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 16px; cursor:pointer; color:var(--muted); font-family:inherit;}
+  nav.bottom button.active{color:var(--orange);}
+  nav.bottom button span{font-size:10px; font-weight:500;}
+
+  .toast{position:absolute; bottom:96px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); font-size:12px; font-weight:500; padding:8px 16px; border-radius:999px; box-shadow:0 4px 12px rgba(0,0,0,.15); display:flex; align-items:center; gap:6px; opacity:0; pointer-events:none; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+
+  svg{display:block;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="statusbar" id="statusbar">
+    <button id="toggleOnline"><span id="statusIcon"></span><span id="statusText">En ligne</span></button>
+    <span style="opacity:.8">appuyer pour tester</span>
+  </div>
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22V10M12 10c0-3 2-5 5-5M12 10C12 7 10 5 7 5" stroke="#1B4332" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <h1 class="font-display">Koodo</h1>
+        <p>le prix du marché, même sans réseau</p>
+      </div>
+    </div>
+    <button class="install-btn" id="installBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+      Installer l'application
+    </button>
+  </header>
+
+  <main id="main"></main>
+
+  <div class="toast" id="toast"></div>
+
+  <nav class="bottom">
+    <button class="nav-btn active" data-tab="prix">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+      <span>Prix</span>
+    </button>
+    <button class="nav-btn" data-tab="vendre">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      <span>Vendre</span>
+    </button>
+    <button class="nav-btn" data-tab="compte">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+      <span>Compte</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+// ---------------------------------------------------------------------
+// Données & état
+// ---------------------------------------------------------------------
+const CROPS = [
+  { id:"mais", name:"Maïs" }, { id:"manioc", name:"Manioc" },
+  { id:"tomate", name:"Tomate" }, { id:"igname", name:"Igname" },
+  { id:"arachide", name:"Arachide" }, { id:"cacao", name:"Cacao" },
+];
+const MARKET_DATA = {
+  mais:     [{market:"Marché de Bouaké-Centre",distance:4,price:285,updated:40},{market:"Marché de Sakassou",distance:11,price:260,updated:190},{market:"Marché de Diabo",distance:18,price:310,updated:25}],
+  manioc:   [{market:"Marché de Bouaké-Centre",distance:4,price:150,updated:60},{market:"Marché de Sakassou",distance:11,price:165,updated:15},{market:"Marché de Diabo",distance:18,price:140,updated:300}],
+  tomate:   [{market:"Marché de Bouaké-Centre",distance:4,price:420,updated:20},{market:"Marché de Sakassou",distance:11,price:380,updated:45},{market:"Marché de Diabo",distance:18,price:455,updated:10}],
+  igname:   [{market:"Marché de Bouaké-Centre",distance:4,price:340,updated:80},{market:"Marché de Sakassou",distance:11,price:355,updated:33},{market:"Marché de Diabo",distance:18,price:330,updated:150}],
+  arachide: [{market:"Marché de Bouaké-Centre",distance:4,price:510,updated:55},{market:"Marché de Sakassou",distance:11,price:495,updated:12},{market:"Marché de Diabo",distance:18,price:530,updated:200}],
+  cacao:    [{market:"Marché de Bouaké-Centre",distance:4,price:1150,updated:30},{market:"Marché de Sakassou",distance:11,price:1180,updated:90},{market:"Marché de Diabo",distance:18,price:1120,updated:5}],
+};
+
+let state = { tab:"prix", selectedCrop:"mais", online:navigator.onLine, offers:[] };
+
+function timeAgo(m){ return m<60 ? `il y a ${m} min` : `il y a ${Math.round(m/60)} h`; }
+function freshness(m){ return m<=30?"fresh":(m<=180?"stale":"old"); }
+function showToast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(showToast._timer);
+  showToast._timer=setTimeout(()=>t.classList.remove("show"),2300);
+}
+
+// ---------------------------------------------------------------------
+// Rendu des onglets
+// ---------------------------------------------------------------------
+function renderPrix(){
+  const rows=[...MARKET_DATA[state.selectedCrop]].sort((a,b)=>b.price-a.price);
+  const best=rows[0];
+  const cropName=CROPS.find(c=>c.id===state.selectedCrop).name;
+  return `
+    <div class="chips">
+      ${CROPS.map(c=>`<button class="chip ${c.id===state.selectedCrop?'active':''}" data-crop="${c.id}">${c.name}</button>`).join("")}
+    </div>
+    <div class="best-card">
+      <div>
+        <p class="eyebrow">meilleur prix aujourd'hui</p>
+        <p class="price font-display">${best.price} F CFA<span>/kg</span></p>
+        <p class="market">${best.market}</p>
+      </div>
+      <div class="best-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2"><path d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+      </div>
+    </div>
+    <p class="section-label">Tableau des prix — ${cropName}</p>
+    <div class="row-list">
+      ${rows.map((r,i)=>`
+        <div class="row-card">
+          <div style="min-width:0">
+            <div class="row-title">
+              <p>${r.market}</p>
+              ${i===0?'<span class="badge-best">MEILLEUR</span>':''}
+            </div>
+            <div class="row-meta">
+              <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>${r.distance} km</span>
+              <span class="${freshness(r.updated)==='old'?'old':''}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${timeAgo(r.updated)}</span>
+            </div>
+          </div>
+          <p class="row-price font-mono">${r.price}</p>
+        </div>
+      `).join("")}
+    </div>
+    <p class="note">Ces prix restent affichés même sans connexion. Ils se mettent à jour dès que ton téléphone retrouve du réseau ou passe près d'un marché partenaire.</p>
+  `;
+}
+
+function renderVendre(){
+  return `
+    <p class="section-label">Proposer ta récolte</p>
+    <form class="sell-form" id="sellForm">
+      <div class="field">
+        <label>Culture</label>
+        <select id="f-crop">${CROPS.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Quantité (kg)</label><input type="number" min="1" id="f-qty" placeholder="ex : 80" /></div>
+        <div class="field"><label>Prix souhaité (F/kg)</label><input type="number" min="1" id="f-price" placeholder="ex : 300" /></div>
+      </div>
+      <button type="submit" class="publish-btn">Publier l'annonce
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </form>
+    ${!state.online?`<p class="offline-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.58 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg> Hors ligne : ton annonce sera envoyée dès le retour du réseau.</p>`:''}
+    <p class="section-label">Mes annonces (${state.offers.length})</p>
+    ${state.offers.length===0 ? `
+      <div class="empty-state">
+        <p>Aucune annonce publiée pour le moment.</p>
+        <p>Ajoute ta récolte pour la proposer directement aux acheteurs, sans intermédiaire.</p>
+      </div>
+    ` : `
+      <div class="row-list">
+        ${state.offers.map(o=>`
+          <div class="offer-card">
+            <div>
+              <p>${o.crop} — ${o.quantity} kg</p>
+              <p class="font-mono">${o.price} F CFA/kg</p>
+            </div>
+            <span class="status-pill ${o.synced?'synced':'pending'}">
+              ${o.synced?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> publiée':'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> en attente'}
+            </span>
+          </div>
+        `).join("")}
+      </div>
+    `}
+  `;
+}
+
+function renderCompte(){
+  return `
+    <div class="profile-card">
+      <div class="avatar">KD</div>
+      <div>
+        <p style="margin:0; font-weight:600; font-size:14px;">Koffi Dibi</p>
+        <p style="margin:2px 0 0; font-size:11px; color:var(--muted);">Producteur · région de Bouaké</p>
+      </div>
+    </div>
+    <p class="section-label">Comment marche Koodo</p>
+    <div class="info-card">Les prix viennent de rapporteurs locaux dans chaque marché partenaire et sont téléchargés dès qu'il y a du réseau — tu les consultes ensuite hors ligne.</div>
+    <div class="info-card">Pas de smartphone sous la main ? La même information sera bientôt disponible en composant un code USSD, pour toucher aussi les téléphones simples.</div>
+    <div class="info-card">Tes annonces de vente restent visibles par les acheteurs enregistrés près de chez toi, sans passer par un intermédiaire.</div>
+  `;
+}
+
+function render(){
+  document.getElementById("main").innerHTML =
+    state.tab==="prix" ? renderPrix() : state.tab==="vendre" ? renderVendre() : renderCompte();
+  attachTabHandlers();
+}
+
+function attachTabHandlers(){
+  document.querySelectorAll(".chip").forEach(el=>{
+    el.onclick = ()=>{ state.selectedCrop = el.dataset.crop; render(); };
+  });
+  const form = document.getElementById("sellForm");
+  if(form){
+    form.onsubmit = (e)=>{
+      e.preventDefault();
+      const cropId = document.getElementById("f-crop").value;
+      const qty = document.getElementById("f-qty").value;
+      const price = document.getElementById("f-price").value;
+      if(!qty || !price) return;
+      const cropName = CROPS.find(c=>c.id===cropId).name;
+      state.offers.unshift({ id:Date.now(), crop:cropName, quantity:qty, price, synced: state.online });
+      render();
+      showToast(state.online ? "Annonce publiée ✓" : "Annonce enregistrée — en attente de réseau");
+    };
+  }
+}
+
+function updateStatusBar(){
+  const bar=document.getElementById("statusbar");
+  const icon=document.getElementById("statusIcon");
+  const text=document.getElementById("statusText");
+  bar.classList.toggle("offline", !state.online);
+  text.textContent = state.online ? "En ligne" : "Hors ligne · mode économie";
+  icon.innerHTML = state.online
+    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>'
+    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.58 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>';
+}
+
+document.getElementById("toggleOnline").onclick = ()=>{
+  state.online = !state.online;
+  updateStatusBar();
+  if(state.online && state.offers.some(o=>!o.synced)){
+    setTimeout(()=>{
+      state.offers = state.offers.map(o=>({...o, synced:true}));
+      if(state.tab==="vendre") render();
+      showToast("Annonces synchronisées ✓");
+    }, 1200);
+  }
+  if(state.tab==="vendre") render();
+};
+
+document.querySelectorAll(".nav-btn").forEach(btn=>{
+  btn.onclick = ()=>{
+    state.tab = btn.dataset.tab;
+    document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    render();
+  };
+});
+
+updateStatusBar();
+render();
+
+// ---------------------------------------------------------------------
+// PWA : installation & service worker
+// ---------------------------------------------------------------------
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById("installBtn").classList.add("show");
+});
+document.getElementById("installBtn").onclick = async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById("installBtn").classList.remove("show");
+};
+window.addEventListener("appinstalled", ()=>{
+  showToast("Koodo est installée ✓");
+});
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

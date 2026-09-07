@@ -1,0 +1,1247 @@
+{
+  "source": "Bulletin des prix des marchés — Côte d'Ivoire (villes : Abidjan, Bouaké, Korhogo, Man, San-Pédro, Yamoussoukro). Prix en F CFA. Données réelles importées dans Koodo.",
+  "cities": [
+    {
+      "id": "ouagadougou",
+      "name": "Ouagadougou",
+      "lat": 12.3714,
+      "lng": -1.5197
+    },
+    {
+      "id": "bobo",
+      "name": "Bobo-Dioulasso",
+      "lat": 11.1833,
+      "lng": -4.2833
+    },
+    {
+      "id": "koudougou",
+      "name": "Koudougou",
+      "lat": 12.255,
+      "lng": -2.3627
+    },
+    {
+      "id": "ouahigouya",
+      "name": "Ouahigouya",
+      "lat": 13.5728,
+      "lng": -2.4216
+    },
+    {
+      "id": "banfora",
+      "name": "Banfora",
+      "lat": 10.6317,
+      "lng": -4.7656
+    },
+    {
+      "id": "kaya",
+      "name": "Kaya",
+      "lat": 13.0867,
+      "lng": -1.0844
+    }
+  ],
+  "products": [
+    {
+      "id": "niebe",
+      "name": "Niébé",
+      "unit": "kg",
+      "emoji": "🫘"
+    },
+    {
+      "id": "sesame",
+      "name": "Sésame",
+      "unit": "kg",
+      "emoji": "🌱"
+    },
+    {
+      "id": "sorgho",
+      "name": "Sorgho",
+      "unit": "kg",
+      "emoji": "🌾"
+    },
+    {
+      "id": "pistache",
+      "name": "Pistache (arachide)",
+      "unit": "kg",
+      "emoji": "🥜"
+    },
+    {
+      "id": "farine-soja",
+      "name": "Farine de soja",
+      "unit": "kg",
+      "emoji": "🫘"
+    },
+    {
+      "id": "soja",
+      "name": "Soja",
+      "unit": "kg",
+      "emoji": "🫘"
+    },
+    {
+      "id": "noix-coco",
+      "name": "Noix de coco",
+      "unit": "pièce",
+      "emoji": "🥥"
+    },
+    {
+      "id": "farine-mil",
+      "name": "Farine de mil",
+      "unit": "kg",
+      "emoji": "🌾"
+    },
+    {
+      "id": "gnangnan",
+      "name": "Gnangnan",
+      "unit": "kg",
+      "emoji": "🌿"
+    },
+    {
+      "id": "oignon-hollande",
+      "name": "Oignon violet (Hollande/Maroc)",
+      "unit": "kg",
+      "emoji": "🧅"
+    },
+    {
+      "id": "pate-pistache",
+      "name": "Pâte de pistache",
+      "unit": "400 g",
+      "emoji": "🥣"
+    },
+    {
+      "id": "pate-placali",
+      "name": "Pâte de placali",
+      "unit": "kg",
+      "emoji": "🥣"
+    },
+    {
+      "id": "gingembre",
+      "name": "Gingembre",
+      "unit": "kg",
+      "emoji": "🌱"
+    },
+    {
+      "id": "papaye",
+      "name": "Papaye",
+      "unit": "kg",
+      "emoji": "🍈"
+    },
+    {
+      "id": "citron",
+      "name": "Citron",
+      "unit": "kg",
+      "emoji": "🍋"
+    },
+    {
+      "id": "avocat",
+      "name": "Avocat",
+      "unit": "kg",
+      "emoji": "🥑"
+    },
+    {
+      "id": "orange",
+      "name": "Orange",
+      "unit": "kg",
+      "emoji": "🍊"
+    },
+    {
+      "id": "ananas",
+      "name": "Ananas",
+      "unit": "kg",
+      "emoji": "🍍"
+    },
+    {
+      "id": "banane-plantain",
+      "name": "Banane plantain",
+      "unit": "kg",
+      "emoji": "🍌"
+    },
+    {
+      "id": "banane-dessert",
+      "name": "Banane dessert",
+      "unit": "kg",
+      "emoji": "🍌"
+    },
+    {
+      "id": "concombre",
+      "name": "Concombre",
+      "unit": "kg",
+      "emoji": "🥒"
+    },
+    {
+      "id": "chou",
+      "name": "Chou",
+      "unit": "kg",
+      "emoji": "🥬"
+    },
+    {
+      "id": "poivron",
+      "name": "Poivron",
+      "unit": "kg",
+      "emoji": "🫑"
+    },
+    {
+      "id": "haricot-vert",
+      "name": "Haricot vert",
+      "unit": "kg",
+      "emoji": "🫛"
+    },
+    {
+      "id": "navet",
+      "name": "Navet",
+      "unit": "kg",
+      "emoji": "🥕"
+    },
+    {
+      "id": "courgette",
+      "name": "Courgette",
+      "unit": "kg",
+      "emoji": "🥒"
+    },
+    {
+      "id": "oignon-niger",
+      "name": "Oignon violet (Niger/Burkina)",
+      "unit": "kg",
+      "emoji": "🧅"
+    },
+    {
+      "id": "oignon-blanc",
+      "name": "Oignon blanc",
+      "unit": "kg",
+      "emoji": "🧅"
+    },
+    {
+      "id": "tomate",
+      "name": "Tomate (type salade)",
+      "unit": "kg",
+      "emoji": "🍅"
+    },
+    {
+      "id": "aubergine",
+      "name": "Aubergine N'drowa",
+      "unit": "kg",
+      "emoji": "🍆"
+    },
+    {
+      "id": "gombo-sec",
+      "name": "Gombo sec en poudre",
+      "unit": "400 g",
+      "emoji": "🌶️"
+    },
+    {
+      "id": "gombo",
+      "name": "Gombo",
+      "unit": "kg",
+      "emoji": "🌿"
+    },
+    {
+      "id": "amande-cajou",
+      "name": "Amande de cajou",
+      "unit": "100 g",
+      "emoji": "🥜"
+    },
+    {
+      "id": "fonio",
+      "name": "Fonio",
+      "unit": "400 g",
+      "emoji": "🌾"
+    },
+    {
+      "id": "mangue",
+      "name": "Mangues",
+      "unit": "kg",
+      "emoji": "🥭"
+    },
+    {
+      "id": "mais-poudre",
+      "name": "Maïs poudre (Kabato)",
+      "unit": "1 kg",
+      "emoji": "🌽"
+    },
+    {
+      "id": "mais-decortique",
+      "name": "Maïs décortiqué",
+      "unit": "kg",
+      "emoji": "🌽"
+    },
+    {
+      "id": "mais",
+      "name": "Maïs",
+      "unit": "kg",
+      "emoji": "🌽"
+    },
+    {
+      "id": "pate-arachide",
+      "name": "Pâte d'arachide",
+      "unit": "400 g",
+      "emoji": "🥜"
+    },
+    {
+      "id": "pate-anacarde",
+      "name": "Pâte d'anacarde",
+      "unit": "500 g",
+      "emoji": "🥜"
+    },
+    {
+      "id": "arachide",
+      "name": "Arachide décortiquée",
+      "unit": "kg",
+      "emoji": "🥜"
+    },
+    {
+      "id": "mil",
+      "name": "Mil",
+      "unit": "kg",
+      "emoji": "🌾"
+    },
+    {
+      "id": "pomme-de-terre",
+      "name": "Pomme de terre",
+      "unit": "kg",
+      "emoji": "🥔"
+    },
+    {
+      "id": "manioc",
+      "name": "Manioc",
+      "unit": "kg",
+      "emoji": "🥔"
+    },
+    {
+      "id": "patate-douce",
+      "name": "Patate douce",
+      "unit": "kg",
+      "emoji": "🍠"
+    },
+    {
+      "id": "igname-klegle",
+      "name": "Igname klégle",
+      "unit": "kg",
+      "emoji": "🍠"
+    },
+    {
+      "id": "igname-assawa",
+      "name": "Igname assawa",
+      "unit": "kg",
+      "emoji": "🍠"
+    }
+  ],
+  "prices": [
+    {
+      "product": "niebe",
+      "city": "kaya",
+      "price": 900
+    },
+    {
+      "product": "sesame",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "sorgho",
+      "city": "bobo",
+      "price": 2000
+    },
+    {
+      "product": "sorgho",
+      "city": "koudougou",
+      "price": 600
+    },
+    {
+      "product": "pistache",
+      "city": "koudougou",
+      "price": 1500
+    },
+    {
+      "product": "pistache",
+      "city": "kaya",
+      "price": 3000
+    },
+    {
+      "product": "farine-soja",
+      "city": "ouagadougou",
+      "price": 800
+    },
+    {
+      "product": "soja",
+      "city": "ouagadougou",
+      "price": 800
+    },
+    {
+      "product": "soja",
+      "city": "bobo",
+      "price": 1800
+    },
+    {
+      "product": "soja",
+      "city": "banfora",
+      "price": 2300
+    },
+    {
+      "product": "soja",
+      "city": "kaya",
+      "price": 2000
+    },
+    {
+      "product": "noix-coco",
+      "city": "ouagadougou",
+      "price": 200
+    },
+    {
+      "product": "noix-coco",
+      "city": "bobo",
+      "price": 125
+    },
+    {
+      "product": "noix-coco",
+      "city": "koudougou",
+      "price": 300
+    },
+    {
+      "product": "noix-coco",
+      "city": "ouahigouya",
+      "price": 200
+    },
+    {
+      "product": "noix-coco",
+      "city": "banfora",
+      "price": 250
+    },
+    {
+      "product": "noix-coco",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "farine-mil",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "farine-mil",
+      "city": "bobo",
+      "price": 2360
+    },
+    {
+      "product": "farine-mil",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "gnangnan",
+      "city": "ouagadougou",
+      "price": 2300
+    },
+    {
+      "product": "oignon-hollande",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "oignon-hollande",
+      "city": "bobo",
+      "price": 700
+    },
+    {
+      "product": "oignon-hollande",
+      "city": "koudougou",
+      "price": 650
+    },
+    {
+      "product": "oignon-hollande",
+      "city": "ouahigouya",
+      "price": 700
+    },
+    {
+      "product": "oignon-hollande",
+      "city": "banfora",
+      "price": 600
+    },
+    {
+      "product": "oignon-hollande",
+      "city": "kaya",
+      "price": 600
+    },
+    {
+      "product": "pate-pistache",
+      "city": "ouagadougou",
+      "price": 2000
+    },
+    {
+      "product": "pate-pistache",
+      "city": "koudougou",
+      "price": 2000
+    },
+    {
+      "product": "pate-pistache",
+      "city": "ouahigouya",
+      "price": 1000
+    },
+    {
+      "product": "pate-pistache",
+      "city": "kaya",
+      "price": 1500
+    },
+    {
+      "product": "pate-placali",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "pate-placali",
+      "city": "banfora",
+      "price": 1000
+    },
+    {
+      "product": "gingembre",
+      "city": "ouagadougou",
+      "price": 3000
+    },
+    {
+      "product": "gingembre",
+      "city": "koudougou",
+      "price": 3500
+    },
+    {
+      "product": "gingembre",
+      "city": "ouahigouya",
+      "price": 3500
+    },
+    {
+      "product": "gingembre",
+      "city": "banfora",
+      "price": 3000
+    },
+    {
+      "product": "gingembre",
+      "city": "kaya",
+      "price": 3500
+    },
+    {
+      "product": "papaye",
+      "city": "ouagadougou",
+      "price": 600
+    },
+    {
+      "product": "papaye",
+      "city": "bobo",
+      "price": 575
+    },
+    {
+      "product": "papaye",
+      "city": "koudougou",
+      "price": 500
+    },
+    {
+      "product": "papaye",
+      "city": "ouahigouya",
+      "price": 300
+    },
+    {
+      "product": "papaye",
+      "city": "banfora",
+      "price": 450
+    },
+    {
+      "product": "papaye",
+      "city": "kaya",
+      "price": 600
+    },
+    {
+      "product": "citron",
+      "city": "ouagadougou",
+      "price": 350
+    },
+    {
+      "product": "citron",
+      "city": "bobo",
+      "price": 600
+    },
+    {
+      "product": "citron",
+      "city": "koudougou",
+      "price": 2000
+    },
+    {
+      "product": "citron",
+      "city": "ouahigouya",
+      "price": 875
+    },
+    {
+      "product": "citron",
+      "city": "banfora",
+      "price": 325
+    },
+    {
+      "product": "citron",
+      "city": "kaya",
+      "price": 800
+    },
+    {
+      "product": "avocat",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "avocat",
+      "city": "bobo",
+      "price": 300
+    },
+    {
+      "product": "avocat",
+      "city": "koudougou",
+      "price": 500
+    },
+    {
+      "product": "avocat",
+      "city": "ouahigouya",
+      "price": 600
+    },
+    {
+      "product": "avocat",
+      "city": "banfora",
+      "price": 650
+    },
+    {
+      "product": "avocat",
+      "city": "kaya",
+      "price": 1500
+    },
+    {
+      "product": "orange",
+      "city": "ouagadougou",
+      "price": 300
+    },
+    {
+      "product": "orange",
+      "city": "bobo",
+      "price": 200
+    },
+    {
+      "product": "orange",
+      "city": "koudougou",
+      "price": 300
+    },
+    {
+      "product": "orange",
+      "city": "ouahigouya",
+      "price": 200
+    },
+    {
+      "product": "orange",
+      "city": "banfora",
+      "price": 225
+    },
+    {
+      "product": "orange",
+      "city": "kaya",
+      "price": 500
+    },
+    {
+      "product": "ananas",
+      "city": "ouagadougou",
+      "price": 400
+    },
+    {
+      "product": "ananas",
+      "city": "koudougou",
+      "price": 700
+    },
+    {
+      "product": "ananas",
+      "city": "ouahigouya",
+      "price": 800
+    },
+    {
+      "product": "ananas",
+      "city": "banfora",
+      "price": 590
+    },
+    {
+      "product": "ananas",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "banane-plantain",
+      "city": "ouagadougou",
+      "price": 400
+    },
+    {
+      "product": "banane-plantain",
+      "city": "bobo",
+      "price": 290
+    },
+    {
+      "product": "banane-plantain",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "banane-plantain",
+      "city": "ouahigouya",
+      "price": 600
+    },
+    {
+      "product": "banane-plantain",
+      "city": "banfora",
+      "price": 350
+    },
+    {
+      "product": "banane-plantain",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "banane-dessert",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "banane-dessert",
+      "city": "bobo",
+      "price": 490
+    },
+    {
+      "product": "banane-dessert",
+      "city": "koudougou",
+      "price": 600
+    },
+    {
+      "product": "banane-dessert",
+      "city": "ouahigouya",
+      "price": 500
+    },
+    {
+      "product": "banane-dessert",
+      "city": "banfora",
+      "price": 490
+    },
+    {
+      "product": "banane-dessert",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "concombre",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "concombre",
+      "city": "bobo",
+      "price": 500
+    },
+    {
+      "product": "concombre",
+      "city": "koudougou",
+      "price": 1200
+    },
+    {
+      "product": "concombre",
+      "city": "ouahigouya",
+      "price": 500
+    },
+    {
+      "product": "concombre",
+      "city": "banfora",
+      "price": 300
+    },
+    {
+      "product": "concombre",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "chou",
+      "city": "ouagadougou",
+      "price": 800
+    },
+    {
+      "product": "chou",
+      "city": "bobo",
+      "price": 800
+    },
+    {
+      "product": "chou",
+      "city": "koudougou",
+      "price": 1300
+    },
+    {
+      "product": "chou",
+      "city": "ouahigouya",
+      "price": 800
+    },
+    {
+      "product": "chou",
+      "city": "banfora",
+      "price": 900
+    },
+    {
+      "product": "chou",
+      "city": "kaya",
+      "price": 600
+    },
+    {
+      "product": "poivron",
+      "city": "ouagadougou",
+      "price": 1200
+    },
+    {
+      "product": "poivron",
+      "city": "koudougou",
+      "price": 2000
+    },
+    {
+      "product": "poivron",
+      "city": "ouahigouya",
+      "price": 1200
+    },
+    {
+      "product": "poivron",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "haricot-vert",
+      "city": "ouagadougou",
+      "price": 1300
+    },
+    {
+      "product": "haricot-vert",
+      "city": "bobo",
+      "price": 1500
+    },
+    {
+      "product": "haricot-vert",
+      "city": "koudougou",
+      "price": 2500
+    },
+    {
+      "product": "haricot-vert",
+      "city": "ouahigouya",
+      "price": 2000
+    },
+    {
+      "product": "haricot-vert",
+      "city": "banfora",
+      "price": 950
+    },
+    {
+      "product": "haricot-vert",
+      "city": "kaya",
+      "price": 1500
+    },
+    {
+      "product": "navet",
+      "city": "ouagadougou",
+      "price": 1200
+    },
+    {
+      "product": "navet",
+      "city": "bobo",
+      "price": 1000
+    },
+    {
+      "product": "navet",
+      "city": "koudougou",
+      "price": 600
+    },
+    {
+      "product": "navet",
+      "city": "ouahigouya",
+      "price": 400
+    },
+    {
+      "product": "navet",
+      "city": "banfora",
+      "price": 1000
+    },
+    {
+      "product": "navet",
+      "city": "kaya",
+      "price": 1500
+    },
+    {
+      "product": "courgette",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "courgette",
+      "city": "bobo",
+      "price": 500
+    },
+    {
+      "product": "courgette",
+      "city": "koudougou",
+      "price": 800
+    },
+    {
+      "product": "courgette",
+      "city": "ouahigouya",
+      "price": 400
+    },
+    {
+      "product": "courgette",
+      "city": "banfora",
+      "price": 325
+    },
+    {
+      "product": "courgette",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "oignon-niger",
+      "city": "ouagadougou",
+      "price": 800
+    },
+    {
+      "product": "oignon-niger",
+      "city": "bobo",
+      "price": 500
+    },
+    {
+      "product": "oignon-niger",
+      "city": "koudougou",
+      "price": 700
+    },
+    {
+      "product": "oignon-niger",
+      "city": "ouahigouya",
+      "price": 700
+    },
+    {
+      "product": "oignon-niger",
+      "city": "banfora",
+      "price": 800
+    },
+    {
+      "product": "oignon-niger",
+      "city": "kaya",
+      "price": 600
+    },
+    {
+      "product": "oignon-blanc",
+      "city": "ouagadougou",
+      "price": 550
+    },
+    {
+      "product": "oignon-blanc",
+      "city": "bobo",
+      "price": 575
+    },
+    {
+      "product": "oignon-blanc",
+      "city": "koudougou",
+      "price": 600
+    },
+    {
+      "product": "oignon-blanc",
+      "city": "ouahigouya",
+      "price": 600
+    },
+    {
+      "product": "oignon-blanc",
+      "city": "banfora",
+      "price": 550
+    },
+    {
+      "product": "oignon-blanc",
+      "city": "kaya",
+      "price": 500
+    },
+    {
+      "product": "tomate",
+      "city": "ouagadougou",
+      "price": 1500
+    },
+    {
+      "product": "tomate",
+      "city": "bobo",
+      "price": 1600
+    },
+    {
+      "product": "tomate",
+      "city": "koudougou",
+      "price": 2500
+    },
+    {
+      "product": "tomate",
+      "city": "ouahigouya",
+      "price": 1200
+    },
+    {
+      "product": "tomate",
+      "city": "banfora",
+      "price": 1500
+    },
+    {
+      "product": "tomate",
+      "city": "kaya",
+      "price": 1500
+    },
+    {
+      "product": "aubergine",
+      "city": "ouagadougou",
+      "price": 700
+    },
+    {
+      "product": "aubergine",
+      "city": "bobo",
+      "price": 800
+    },
+    {
+      "product": "aubergine",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "aubergine",
+      "city": "ouahigouya",
+      "price": 600
+    },
+    {
+      "product": "aubergine",
+      "city": "banfora",
+      "price": 600
+    },
+    {
+      "product": "aubergine",
+      "city": "kaya",
+      "price": 500
+    },
+    {
+      "product": "gombo-sec",
+      "city": "ouagadougou",
+      "price": 700
+    },
+    {
+      "product": "gombo-sec",
+      "city": "koudougou",
+      "price": 500
+    },
+    {
+      "product": "gombo-sec",
+      "city": "kaya",
+      "price": 500
+    },
+    {
+      "product": "gombo",
+      "city": "ouagadougou",
+      "price": 800
+    },
+    {
+      "product": "gombo",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "gombo",
+      "city": "ouahigouya",
+      "price": 800
+    },
+    {
+      "product": "gombo",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "amande-cajou",
+      "city": "ouagadougou",
+      "price": 5000
+    },
+    {
+      "product": "amande-cajou",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "amande-cajou",
+      "city": "kaya",
+      "price": 2000
+    },
+    {
+      "product": "fonio",
+      "city": "bobo",
+      "price": 2100
+    },
+    {
+      "product": "fonio",
+      "city": "ouahigouya",
+      "price": 1200
+    },
+    {
+      "product": "fonio",
+      "city": "kaya",
+      "price": 600
+    },
+    {
+      "product": "mangue",
+      "city": "kaya",
+      "price": 400
+    },
+    {
+      "product": "mais-poudre",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "mais-poudre",
+      "city": "kaya",
+      "price": 500
+    },
+    {
+      "product": "mais-decortique",
+      "city": "ouagadougou",
+      "price": 350
+    },
+    {
+      "product": "mais",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "pate-arachide",
+      "city": "ouagadougou",
+      "price": 1200
+    },
+    {
+      "product": "pate-arachide",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "pate-arachide",
+      "city": "ouahigouya",
+      "price": 500
+    },
+    {
+      "product": "pate-arachide",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "pate-anacarde",
+      "city": "ouagadougou",
+      "price": 2000
+    },
+    {
+      "product": "arachide",
+      "city": "ouagadougou",
+      "price": 900
+    },
+    {
+      "product": "arachide",
+      "city": "bobo",
+      "price": 900
+    },
+    {
+      "product": "arachide",
+      "city": "kaya",
+      "price": 1000
+    },
+    {
+      "product": "mil",
+      "city": "ouagadougou",
+      "price": 500
+    },
+    {
+      "product": "pomme-de-terre",
+      "city": "ouagadougou",
+      "price": 600
+    },
+    {
+      "product": "pomme-de-terre",
+      "city": "bobo",
+      "price": 500
+    },
+    {
+      "product": "pomme-de-terre",
+      "city": "koudougou",
+      "price": 700
+    },
+    {
+      "product": "pomme-de-terre",
+      "city": "ouahigouya",
+      "price": 600
+    },
+    {
+      "product": "pomme-de-terre",
+      "city": "banfora",
+      "price": 500
+    },
+    {
+      "product": "pomme-de-terre",
+      "city": "kaya",
+      "price": 2000
+    },
+    {
+      "product": "manioc",
+      "city": "kaya",
+      "price": 2000
+    },
+    {
+      "product": "patate-douce",
+      "city": "ouagadougou",
+      "price": 400
+    },
+    {
+      "product": "patate-douce",
+      "city": "bobo",
+      "price": 490
+    },
+    {
+      "product": "patate-douce",
+      "city": "koudougou",
+      "price": 1000
+    },
+    {
+      "product": "patate-douce",
+      "city": "ouahigouya",
+      "price": 500
+    },
+    {
+      "product": "patate-douce",
+      "city": "banfora",
+      "price": 350
+    },
+    {
+      "product": "patate-douce",
+      "city": "kaya",
+      "price": 800
+    },
+    {
+      "product": "igname-klegle",
+      "city": "ouagadougou",
+      "price": 600
+    },
+    {
+      "product": "igname-klegle",
+      "city": "koudougou",
+      "price": 700
+    },
+    {
+      "product": "igname-klegle",
+      "city": "ouahigouya",
+      "price": 700
+    },
+    {
+      "product": "igname-assawa",
+      "city": "koudougou",
+      "price": 600
+    },
+    {
+      "product": "igname-assawa",
+      "city": "ouahigouya",
+      "price": 600
+    },
+    {
+      "product": "igname-assawa",
+      "city": "banfora",
+      "price": 250
+    },
+    {
+      "product": "igname-assawa",
+      "city": "kaya",
+      "price": 800
+    }
+  ]
+}

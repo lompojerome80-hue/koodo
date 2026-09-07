@@ -1,0 +1,198 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Un utilisateur est admin si son rôle en base est 'admin'.
+    function isCourierAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // L'auteur d'une demande d'aide.
+    function isThreadUser(threadId) {
+      return get(/databases/$(database)/documents/support_threads/$(threadId)).data.userId == request.auth.uid;
+    }
+
+    // Le livreur doit avoir un dossier complet pour être autorisé à accepter une course.
+    function courierHasDossier() {
+      let u = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return u.role == 'courier'
+        && u.locality != null && u.transport != null
+        && u.selfie != null && u.idFront != null && u.idBack != null;
+    }
+    // Vendeur, livreur attitré ou acheteur de la course.
+    function isParticipant(delivery) {
+      return delivery.sellerId == request.auth.uid
+        || delivery.courierId == request.auth.uid
+        || delivery.buyerPhone == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phone;
+    }
+
+    // Catalogue : lecture authentifiée. Les prix « semés » sont protégés ;
+    // seuls les prix communautaires (signalements confirmés) peuvent être
+    // publiés/écrits par l'application. Durcissement possible avec une
+    // Cloud Function qui fusionne les price_reports.
+    match /crops/{id} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /markets/{id} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /prices/{id} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.source == 'community';
+      allow delete: if false;
+    }
+
+    // Radio communautaire anti-fraude : signalements bruts. Chaque membre
+    // écrit le sien ; l'application ne publie qu'après 2 signalements concordants.
+    match /price_reports/{id} {
+      allow read: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isCourierAdmin());
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.applied == false;
+      allow update: if request.auth != null && isCourierAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['applied']);
+      allow delete: if false;
+    }
+
+    // Profils utilisateurs : chacun lit/touche son propre profil (dossier livreur inclus) ;
+    // l'admin peut lire/écrire tous les profils (vérification des dossiers).
+    match /users/{uid} {
+      function isAdmin() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == uid;
+      allow update: if (request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['fullName','phone','region','village','ussdCode','verified',
+                     'role','authProvider','email','googleUid',
+                     'locality','transport','selfie','idFront','idBack','docStatus','docUpdatedAt',
+                     'blocked','blockedReason']))
+        || isAdmin();
+      allow delete: if false;
+    }
+
+    // Offres : lecture pour les membres ; les vendeurs créent/modifient les leurs
+    match /offers/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.sellerId == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.sellerId == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status']));
+      allow delete: if resource.data.sellerId == request.auth.uid;
+    }
+
+    // Messages : participants d'une discussion
+    match /messages/{id} {
+      allow read, create: if request.auth != null
+        && (request.resource.data.senderId == request.auth.uid
+            || request.resource.data.recipientId == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // Alertes prix : privées à leur auteur
+    match /alerts/{id} {
+      allow read: if request.auth != null
+        && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if resource.data.userId == request.auth.uid;
+      allow update: if resource.data.userId == request.auth.uid;
+    }
+
+    // Transactions : l'acheteur crée/consulte les siennes, le vendeur consulte ses reçus
+    match /transactions/{id} {
+      allow read: if request.auth != null
+        && (resource.data.buyerId == request.auth.uid
+            || resource.data.sellerId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.buyerId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Livraisons communautaires : gating dossier livreur à l'acceptation.
+    match /deliveries/{id} {
+      allow read: if request.auth != null && isParticipant(resource.data);
+      allow create: if request.auth != null
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.status == 'open';
+      allow update: if request.auth != null && (
+        (resource.data.sellerId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        ||
+        (courierHasDossier()
+          && resource.data.status == 'open'
+          && request.resource.data.courierId == request.auth.uid
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['courierId','courierName','status','acceptedAt']))
+        ||
+        (resource.data.courierId == request.auth.uid && resource.data.status != 'done'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','pickedAt','deliveredAt']))
+      );
+      allow delete: if false;
+
+      // Notifications de la course : événements d'identité publique du livreur.
+      match /events/{eventId} {
+        allow read: if request.auth != null && isParticipant(get(/databases/$(database)/documents/deliveries/$(id)));
+        allow create: if request.auth != null
+          && request.resource.data.actorUid == request.auth.uid
+          && isParticipant(get(/databases/$(database)/documents/deliveries/$(id)));
+        allow update, delete: if false;
+      }
+    }
+
+    // Marquage "lu" des notifications d'un compte.
+    match /notifications_seen/{uid}/{courseId} {
+      allow read, create, update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // Règlements du dû (Koodo). Le livreur crée/voit les siens ; l'admin voit
+    // et confirme (déblocage via le passage au statut 'confirmed').
+    match /payments/{id} {
+      allow read: if request.auth != null
+        && (resource.data.courierId == request.auth.uid || isCourierAdmin());
+      allow create: if request.auth != null
+        && request.resource.data.courierId == request.auth.uid;
+      allow update: if isCourierAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','confirmedAt']);
+      allow delete: if false;
+    }
+
+    // Identifiants sandbox (simulation WhatsApp) : privés et limités à l'UID
+    match /sandboxCreds/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ============================================================
+    // Aide / service technique : les utilisateurs ouvrent une demande
+    // et y écrivent ; le service (admin) lit tout et répond.
+    // ============================================================
+    match /support_threads/{id} {
+      allow read: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isCourierAdmin());
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'open';
+      allow update: if isCourierAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
+    }
+
+    match /support_messages/{id} {
+      allow read: if request.auth != null
+        && (isThreadUser(resource.data.threadId) || isCourierAdmin());
+      allow create: if request.auth != null
+        && ((request.resource.data.senderRole == 'user' && isThreadUser(request.resource.data.threadId))
+            || (request.resource.data.senderRole == 'admin' && isCourierAdmin()));
+      allow update, delete: if false;
+    }
+  }
+}

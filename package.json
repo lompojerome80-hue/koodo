@@ -1,0 +1,24 @@
+{
+  "name": "koodo",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Koodo — the market at your fingertips. Premium PWA for farmers & buyers.",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,magenta \"npm:dev -w server\" \"npm:dev -w client\"",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server",
+    "seed": "npm run seed -w server",
+    "seed:firebase": "node scripts/seed-firebase.mjs",
+    "test:server": "npm run test -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
