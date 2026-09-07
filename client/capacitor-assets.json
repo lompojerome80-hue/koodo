@@ -1,0 +1,10 @@
+{
+  "assets": {
+    "icon": {
+      "src": "public/icon-512.png"
+    },
+    "splash": {
+      "src": "public/icon-512.png"
+    }
+  }
+}

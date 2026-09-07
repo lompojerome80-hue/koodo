@@ -1,4 +1,5 @@
-const BASE = "/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+const BASE = API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
 
 let token: string | null = localStorage.getItem("koodo_token");
 
