@@ -56,6 +56,8 @@ export default function AccountScreen() {
     if (user.role !== "courier") void refreshAlerts();
     void refreshThreads();
     void refreshSales();
+    const poll = setInterval(() => void refreshThreads(), 5000);
+    return () => clearInterval(poll);
   }, [user]);
 
   async function refreshSales() {

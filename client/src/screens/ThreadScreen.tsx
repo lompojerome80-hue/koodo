@@ -14,16 +14,35 @@ export default function ThreadScreen() {
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const stickToBottom = useRef(true);
+
   useEffect(() => {
     if (!offerId) return;
-    void (async () => {
+    let cancelled = false;
+    let freshLoaded = false;
+
+    const load = async (follow: boolean) => {
       try {
-        setMsgs(await data.getMessages(offerId));
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        const fresh = await data.getMessages(offerId);
+        if (cancelled) return;
+        setMsgs(fresh);
+        if (follow && stickToBottom.current) {
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        }
       } catch {
-        showToast("Conversation indisponible hors ligne");
+        if (!freshLoaded) showToast("Conversation indisponible hors ligne");
       }
-    })();
+    };
+    void load(true).finally(() => { freshLoaded = true; });
+
+    const poll = setInterval(() => {
+      // On reste collé en bas sauf si l'utilisateur remonte pour lire l'historique.
+      const el = bottomRef.current?.parentElement;
+      stickToBottom.current = el ? el.scrollHeight - el.scrollTop - el.clientHeight < 80 : true;
+      void load(true);
+    }, 3000);
+
+    return () => { cancelled = true; clearInterval(poll); };
   }, [offerId]);
 
   async function send(e: React.FormEvent) {
