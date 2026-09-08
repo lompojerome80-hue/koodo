@@ -86,7 +86,7 @@ export default function SellScreen() {
       });
       setMyOffers([offer, ...myOffers.filter((o) => o.id !== offer.id)]);
       setQty(""); setPrice(""); setLoc(""); setPhoto("");
-      showToast(offer.status === "pending" ? "Hors ligne : l'annonce partira au retour du réseau" : "Annonce publiée ✓");
+      showToast(online ? "Annonce publiée ✓" : "Annonce publiée — envoi dès que le réseau revient ✓");
     } catch (err: any) {
       showToast(err.message || "Impossible de publier");
     } finally {
