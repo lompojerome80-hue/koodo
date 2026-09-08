@@ -127,6 +127,39 @@ export default function App() {
     })();
   }, [online]);
 
+  // File d'envoi : retentatives automatiques (toutes les 15 s) + au retour au
+  // premier plan. Une annonce mise « en file » (réseau lent, serveur endormi)
+  // part toute seule dès que le serveur répond — sans action de l'utilisateur.
+  useEffect(() => {
+    if (dbMode !== "demo" || !user?.id) return;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped || !useApp.getState().online) return;
+      try {
+        const n = await flushOfflineQueue();
+        if (n === 0) return;
+        const pending = await offline.listQueue();
+        setPendingSync(pending.length);
+        const u = useApp.getState().user;
+        if (u?.role === "producer") {
+          setMyOffers(await data.listMyOffers());
+        }
+        useToast.getState().show(n === 1 ? "Annonce synchronisée ✓" : `${n} annonces synchronisées ✓`);
+      } catch {}
+    };
+    void tick();
+    const iv = setInterval(() => void tick(), 15000);
+    const vis = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      stopped = true;
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", vis);
+    };
+  }, [dbMode, user?.id, setPendingSync, setMyOffers]);
+
   return (
     <>
       {!user ? (

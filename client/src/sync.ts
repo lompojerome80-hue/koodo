@@ -22,8 +22,8 @@ export async function flushOfflineQueue(): Promise<number> {
       await offline.dropQueue(item.id);
       synced++;
     } catch {
-      // stay queued, retry later
-      break;
+      // Une annonce bloquée ne doit pas empêcher les suivantes de partir :
+      // on continue, et une nouvelle tentative périodique reprendra celle-ci.
     }
   }
   return synced;

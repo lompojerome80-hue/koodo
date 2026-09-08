@@ -8,6 +8,7 @@ import { useToast } from "../hooks/useToast";
 import { requestLocation, restoreLocation } from "../geo";
 import { refreshNotifications, markAllNotificationsRead } from "../notif";
 import { startRealtime, stopRealtime, onLive } from "../realtime";
+import { data } from "../data";
 import type { AppNotification } from "../types";
 import { t, type Lang } from "../i18n";
 
@@ -43,6 +44,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     restoreLocation();
   }, []);
+
+  // Au démarrage : afficher tout de suite un badge « N à envoyer » s'il reste
+  // des annonces en file d'un usage précédent (elle sera envoyée toute seule).
+  useEffect(() => {
+    if (!user?.id) return;
+    void offline.listQueue().then((q) => {
+      if (q.length) setPendingSync(q.length);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -114,6 +124,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setPendingSync(pending.length);
     if (n > 0) {
       useToast.getState().show(n === 1 ? "Annonce synchronisée ✓" : `${n} annonces synchronisées ✓`);
+      if (useApp.getState().user?.role === "producer") {
+        const my = await data.listMyOffers().catch(() => []);
+        useApp.getState().setMyOffers(my);
+      }
     }
   }
 

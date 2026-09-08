@@ -23,12 +23,23 @@ export function clearToken() {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json", ...(options.headers as any) };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Erreur ${res.status}`);
+  // Timeout 30 s : un serveur qui dort (cold start Render, réseau lent) ne bloque
+  // jamais l'écran — la demande échoue proprement et repart en file de synchro.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const res = await fetch(`${BASE}${path}`, { ...options, headers, signal: ctrl.signal });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Erreur ${res.status}`);
+    }
+    return res.json();
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw new Error("Serveur injoignable — annonce mise dans la file d'envoi");
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 export const api = {

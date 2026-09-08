@@ -1,6 +1,7 @@
 import { api, setToken, getToken } from "../api";
 import { offline } from "../offline";
 import { useApp } from "../store";
+import { flushOfflineQueue } from "../sync";
 import { seedPricesFor, jitterRows } from "./seed";
 import { makeTicketRef } from "../payments/providers";
 import type { DataBackend, NewOffer, RegisterInput, StartPaymentInput, CheckoutInput } from "./types";
@@ -292,8 +293,9 @@ export const demoBackend: DataBackend = {
     const me = useApp.getState().user;
     const crops = useApp.getState().crops;
     const crop = crops.find((c) => c.id === input.cropId);
+    const id = nanoid();
     const base: Offer = {
-      id: "",
+      id,
       crop_id: input.cropId,
       crop_name: crop?.name || input.cropId,
       emoji: crop?.emoji,
@@ -309,26 +311,14 @@ export const demoBackend: DataBackend = {
       image: input.image,
     };
 
-    try {
-      const res = await api.post<{ offer: any }>("/offers", {
-        cropId: input.cropId,
-        quantity: input.quantity,
-        unitPrice: input.unitPrice,
-        locationLat: input.lat ?? null,
-        locationLng: input.lng ?? null,
-        image: input.image ?? null,
-      });
-      return mapOffer(res.offer);
-    } catch {
-      // Hors ligne (ou serveur muet) → file locale, synchronisée au retour du réseau
-      const id = nanoid();
-      base.id = id;
-      base.status = "pending";
-      await offline.queueOffer({ id, cropId: input.cropId, quantity: input.quantity, unitPrice: input.unitPrice, createdAt: base.created_at, image: input.image });
-      await offline.saveOfferLocal({ id, cropId: input.cropId, quantity: input.quantity, unitPrice: input.unitPrice, createdAt: base.created_at, image: input.image });
-      useApp.getState().setPendingSync((await offline.listQueue()).length);
-      return base;
-    }
+    // Publication optimiste : l'annonce est visible « en ligne » dès maintenant.
+    // Elle part pour le serveur en arrière-plan ; si le réseau est lent ou le
+    // serveur endormi, elle reste dans la file et sera renvoyée automatiquement.
+    await offline.queueOffer({ id, cropId: input.cropId, quantity: input.quantity, unitPrice: input.unitPrice, createdAt: base.created_at, image: input.image });
+    await offline.saveOfferLocal({ id, cropId: input.cropId, quantity: input.quantity, unitPrice: input.unitPrice, createdAt: base.created_at, image: input.image });
+    useApp.getState().setPendingSync((await offline.listQueue()).length);
+    void flushOfflineQueue();
+    return base;
   },
 
   async listMarketOffers() {
@@ -337,22 +327,33 @@ export const demoBackend: DataBackend = {
   },
 
   async listMyOffers() {
+    let server: Offer[] = [];
     try {
-      const rows = await api.get<any[]>("/offers?mine=1");
-      return rows.map(mapOffer);
+      server = (await api.get<any[]>("/offers?mine=1")).map(mapOffer);
     } catch {
-      const local = await offline.localOffers();
-      return local.map((l) => ({
+      /* hors ligne : on se rabat sur la file locale */
+    }
+    const queued = await offline.localOffers();
+    // Toute annonce encore en file (pas encore partie) reste visible « en ligne » :
+    // elle sera envoyée dès que le réseau le permet. Le serveur fait foi si connue.
+    const map = new Map(server.map((o) => [o.id, o]));
+    for (const l of queued) {
+      if (map.has(l.id)) continue;
+      const crops = useApp.getState().crops;
+      const c = crops.find((x) => x.id === l.cropId);
+      map.set(l.id, {
         id: l.id,
         crop_id: l.cropId,
-        crop_name: l.cropId,
+        crop_name: c?.name || l.cropId,
+        emoji: c?.emoji,
         quantity: l.quantity,
         unit_price: l.unitPrice,
-        status: "pending" as const,
+        status: "open" as const,
         created_at: l.createdAt,
         image: l.image,
-      }));
+      });
     }
+    return [...map.values()];
   },
 
   async markOfferStatus(id: string, status: "open" | "sold" | "cancelled") {
