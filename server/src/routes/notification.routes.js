@@ -8,7 +8,7 @@ const router = Router();
 router.get("/", authRequired, (req, res) => {
   const rows = db
     .prepare(
-      `SELECT id, kind, title, body, actor_name, actor_photo, delivery_id, seen, created_at
+      `SELECT id, kind, title, body, actor_name, actor_photo, offer_id, delivery_id, seen, created_at
        FROM notifications WHERE user_id = ? ORDER BY seen ASC, created_at DESC LIMIT 50`
     )
     .all(req.user.sub);
@@ -21,6 +21,7 @@ router.get("/", authRequired, (req, res) => {
       body: n.body,
       actor_name: n.actor_name,
       actor_photo: n.actor_photo,
+      offer_id: n.offer_id,
       delivery_id: n.delivery_id,
       seen: !!n.seen,
       created_at: n.created_at,

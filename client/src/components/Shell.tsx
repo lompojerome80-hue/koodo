@@ -65,6 +65,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   function onNotifTap(n: AppNotification) {
     setNotifOpen(false);
     markAllNotificationsRead();
+    if (n.kind === "message" && n.offer_id) {
+      navigate(`/message/${n.offer_id}`);
+      return;
+    }
     navigate(user?.role === "courier" ? "/livraisons" : "/compte");
   }
 

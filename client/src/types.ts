@@ -76,6 +76,7 @@ export interface AppNotification {
   /** Identité publique de l'acteur (photo + nom) — jamais les photos de pièce. */
   actor_name?: string | null;
   actor_photo?: string | null;
+  offer_id?: string | null;
   delivery_id?: string | null;
   seen: boolean;
   created_at: string;

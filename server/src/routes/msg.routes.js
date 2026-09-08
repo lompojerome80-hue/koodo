@@ -2,6 +2,7 @@ import { Router } from "express";
 import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
+import { notifyUser } from "../notify.js";
 
 const router = Router();
 
@@ -39,9 +40,38 @@ router.post("/:offerId", authRequired, (req, res) => {
   if (!body || !body.trim()) return res.status(400).json({ error: "message vide" });
   const offer = db.prepare("SELECT * FROM offers WHERE id=?").get(req.params.offerId);
   if (!offer) return res.status(404).json({ error: "annonce introuvable" });
-  db.prepare(
-    `INSERT INTO messages (id, offer_id, sender_id, body) VALUES (?,?,?,?)`
-  ).run(nanoid(), req.params.offerId, req.user.sub, body.trim());
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO messages (id, offer_id, sender_id, body) VALUES (?,?,?,?)`
+    ).run(nanoid(), req.params.offerId, req.user.sub, body.trim());
+
+    // Notifie le destinataire : le vendeur, ou l'acheteur le plus récent qui
+    // a écrit (les deux comptes voient le nouveau message dans la cloche).
+    let recipientId = offer.user_id;
+    if (req.user.sub === offer.user_id) {
+      const lastBuyer = db.prepare(
+        `SELECT sender_id FROM messages WHERE offer_id=? AND sender_id<>? ORDER BY datetime(created_at) DESC LIMIT 1`
+      ).get(req.params.offerId, offer.user_id);
+      if (lastBuyer) recipientId = lastBuyer.sender_id;
+    }
+    const sender = db.prepare("SELECT full_name, avatar FROM users WHERE id=?").get(req.user.sub);
+    const offerInfo = db.prepare(
+      `SELECT c.name crop_name, c.emoji FROM offers o JOIN crops c ON c.id=o.crop_id WHERE o.id=?`
+    ).get(req.params.offerId);
+    const crop = offerInfo ? `${offerInfo.emoji} ${offerInfo.crop_name}` : "l'annonce";
+    const name = sender?.full_name || "Quelqu'un";
+    const preview = body.trim().length > 80 ? body.trim().slice(0, 80) + "…" : body.trim();
+    if (recipientId !== req.user.sub) {
+      notifyUser(recipientId, {
+        kind: "message",
+        title: `Nouveau message · ${crop}`,
+        body: `${name} : ${preview}`,
+        actor_name: name,
+        actor_photo: sender?.avatar || null,
+        offer_id: req.params.offerId,
+      });
+    }
+  })();
   res.status(201).json({ ok: true });
 });
 

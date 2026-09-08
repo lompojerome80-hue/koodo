@@ -176,6 +176,7 @@ db.exec(`
     body        TEXT NOT NULL,
     actor_name  TEXT,
     actor_photo TEXT,
+    offer_id    TEXT REFERENCES offers(id),
     delivery_id TEXT,
     seen        INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
@@ -282,6 +283,14 @@ try {
 // Migration : photos des annonces (bases créées avant l'ajout de la colonne image)
 try {
   db.exec("ALTER TABLE offers ADD COLUMN image TEXT");
+} catch {
+  /* colonne déjà présente */
+}
+
+// Migration : notifications de message → colonne offer_id (base créée avant)
+// Permet à la cloche de naviguer vers la conversation au clic.
+try {
+  db.exec("ALTER TABLE notifications ADD COLUMN offer_id TEXT REFERENCES offers(id)");
 } catch {
   /* colonne déjà présente */
 }

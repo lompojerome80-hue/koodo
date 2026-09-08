@@ -2,6 +2,7 @@ import { Router } from "express";
 import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
+import { notifyUser } from "../notify.js";
 
 const router = Router();
 
@@ -134,23 +135,6 @@ function error(res, err) {
 
 // Notification "sticky" : le destinataire la voit dans son centre de notifications
 // à sa prochaine connexion (pas besoin qu'il soit en ligne à l'événement).
-function notifyUser(userId, notif) {
-  if (!userId) return;
-  db.prepare(
-    `INSERT INTO notifications (id, user_id, kind, title, body, actor_name, actor_photo, delivery_id)
-     VALUES (?,?,?,?,?,?,?,?)`
-  ).run(
-    nanoid(),
-    userId,
-    notif.kind,
-    notif.title,
-    notif.body,
-    notif.actor_name || null,
-    notif.actor_photo || null,
-    notif.delivery_id || null
-  );
-}
-
 function buyerIdOf(d) {
   const row = d.buyer_phone
     ? db.prepare("SELECT id FROM users WHERE phone = ? LIMIT 1").get(d.buyer_phone)
