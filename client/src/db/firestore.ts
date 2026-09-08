@@ -650,6 +650,11 @@ createdAt: serverTimestamp(),
     await deleteDoc(doc(dbc(), "messages", messageId));
   },
 
+  // Accusés de lecture : non géré côté Firebase (déploiement serveur uniquement).
+  async markMessagesRead(_offerId: string) {
+    return;
+  },
+
   async listAlerts() {
     const me = await refreshSelf();
     if (!me) return [];

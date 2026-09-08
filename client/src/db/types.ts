@@ -49,6 +49,8 @@ export interface Thread {
   other_role: string;
   body: string;
   created_at: string;
+  /** Messages entrants non encore lus (badge de conversation). */
+  unread?: number;
 }
 
 export interface Msg {
@@ -57,6 +59,8 @@ export interface Msg {
   sender_id: string;
   sender_name: string;
   created_at: string;
+  /** 1 = lu par le destinataire (accusé de lecture). */
+  seen?: number;
 }
 
 export interface DeliveryInfo {
@@ -182,6 +186,8 @@ export interface DataBackend {
   getMessages(offerId: string): Promise<Msg[]>;
   sendMessage(offerId: string, body: string): Promise<void>;
   deleteMessage(offerId: string, messageId: string): Promise<void>;
+  /** Marque la conversation comme lue (accusés + cloche). */
+  markMessagesRead(offerId: string): Promise<void>;
 
   listAlerts(): Promise<Alert[]>;
   createAlert(cropId: string, targetPrice: number): Promise<Alert>;

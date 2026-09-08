@@ -295,6 +295,14 @@ try {
   /* colonne déjà présente */
 }
 
+// Migration : accusés de lecture des messages (base créée avant) — badge "non
+// lu" par conversation et double coche comme sur WhatsApp.
+try {
+  db.exec("ALTER TABLE messages ADD COLUMN seen INTEGER NOT NULL DEFAULT 0");
+} catch {
+  /* colonne déjà présente */
+}
+
 // Migration : rôle livreur + blocage du compte (bases créées avant)
 // SQLite ne permet pas d'élargir un CHECK en place → on reconstruit la table.
 // NB : legacy_alter_table=ON empêche RENAME de réécrire les FK vers users_old.

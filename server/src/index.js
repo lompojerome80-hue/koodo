@@ -16,6 +16,7 @@ import ussdRoutes from "./routes/ussd.routes.js";
 import whatsappRoutes from "./routes/whatsapp.routes.js";
 import deliveryRoutes, { startDuesScheduler } from "./routes/delivery.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import eventRoutes from "./routes/events.routes.js";
 import supportRoutes from "./routes/support.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { uploadsDir } from "./uploads.js";
@@ -48,6 +49,7 @@ app.use("/api/ussd", ussdRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/events", eventRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/admin", adminRoutes);
 

@@ -7,6 +7,7 @@ import { offline } from "../offline";
 import { useToast } from "../hooks/useToast";
 import { requestLocation, restoreLocation } from "../geo";
 import { refreshNotifications, markAllNotificationsRead } from "../notif";
+import { startRealtime, stopRealtime, onLive } from "../realtime";
 import type { AppNotification } from "../types";
 import { t, type Lang } from "../i18n";
 
@@ -50,6 +51,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       if (document.visibilityState === "visible") refreshNotifications();
     }, 30_000);
     return () => clearInterval(t);
+  }, [user?.id]);
+
+  // Canal temps réel : la cloche s'allume dès qu'un message arrive, sans
+  // attendre le prochain polling (repli automatique sur le timer ci-dessus).
+  useEffect(() => {
+    if (!user?.id) return;
+    startRealtime();
+    const off = onLive((ev) => {
+      if (ev.type === "message") void refreshNotifications();
+    });
+    return () => {
+      stopRealtime();
+      off();
+    };
   }, [user?.id]);
 
   async function askLocation() {

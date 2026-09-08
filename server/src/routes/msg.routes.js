@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
 import { notifyUser } from "../notify.js";
+import { pushTo, counterpartOf } from "../realtime.js";
 
 const router = Router();
 
@@ -10,16 +11,18 @@ router.get("/threads", authRequired, (req, res) => {
   const rows = db.prepare(
     `SELECT m.id, m.offer_id, m.body, m.sender_id, m.created_at,
             o.crop_id, c.name crop_name, c.emoji, o.quantity, o.unit_price,
-            other.full_name other_name, other.role other_role
+            other.full_name other_name, other.role other_role,
+            (SELECT COUNT(*) FROM messages sub
+              WHERE sub.offer_id = m.offer_id AND sub.sender_id <> ? AND sub.seen = 0) AS unread
      FROM messages m
      JOIN offers o ON o.id=m.offer_id
      JOIN crops c ON c.id=o.crop_id
      JOIN users other ON other.id = (SELECT CASE WHEN o.user_id=? THEN sender_id ELSE o.user_id END)
-     JOIN (SELECT offer_id, MAX(created_at) mx FROM messages GROUP BY offer_id) last ON last.offer_id=m.offer_id
+     JOIN (SELECT offer_id, MAX(created_at) mx FROM messages GROUP BY offer_id) last ON last.offer_id=m.offer_id AND last.mx=m.created_at
      WHERE m.sender_id=? OR o.user_id=?
      ORDER BY datetime(m.created_at) DESC`,
-  ).all(req.user.sub, req.user.sub, req.user.sub);
-  res.json(rows);
+  ).all(req.user.sub, req.user.sub, req.user.sub, req.user.sub);
+  res.json(rows.map((r) => ({ ...r, unread: Number(r.unread) || 0 })));
 });
 
 router.get("/:offerId", authRequired, (req, res) => {
@@ -40,28 +43,22 @@ router.post("/:offerId", authRequired, (req, res) => {
   if (!body || !body.trim()) return res.status(400).json({ error: "message vide" });
   const offer = db.prepare("SELECT * FROM offers WHERE id=?").get(req.params.offerId);
   if (!offer) return res.status(404).json({ error: "annonce introuvable" });
+
+  const recipientId = counterpartOf(db, offer, req.user.sub);
+
   db.transaction(() => {
     db.prepare(
       `INSERT INTO messages (id, offer_id, sender_id, body) VALUES (?,?,?,?)`
     ).run(nanoid(), req.params.offerId, req.user.sub, body.trim());
 
-    // Notifie le destinataire : le vendeur, ou l'acheteur le plus récent qui
-    // a écrit (les deux comptes voient le nouveau message dans la cloche).
-    let recipientId = offer.user_id;
-    if (req.user.sub === offer.user_id) {
-      const lastBuyer = db.prepare(
-        `SELECT sender_id FROM messages WHERE offer_id=? AND sender_id<>? ORDER BY datetime(created_at) DESC LIMIT 1`
-      ).get(req.params.offerId, offer.user_id);
-      if (lastBuyer) recipientId = lastBuyer.sender_id;
-    }
-    const sender = db.prepare("SELECT full_name, avatar FROM users WHERE id=?").get(req.user.sub);
-    const offerInfo = db.prepare(
-      `SELECT c.name crop_name, c.emoji FROM offers o JOIN crops c ON c.id=o.crop_id WHERE o.id=?`
-    ).get(req.params.offerId);
-    const crop = offerInfo ? `${offerInfo.emoji} ${offerInfo.crop_name}` : "l'annonce";
-    const name = sender?.full_name || "Quelqu'un";
-    const preview = body.trim().length > 80 ? body.trim().slice(0, 80) + "…" : body.trim();
-    if (recipientId !== req.user.sub) {
+    if (recipientId && recipientId !== req.user.sub) {
+      const sender = db.prepare("SELECT full_name, avatar FROM users WHERE id=?").get(req.user.sub);
+      const offerInfo = db.prepare(
+        `SELECT c.name crop_name, c.emoji FROM offers o JOIN crops c ON c.id=o.crop_id WHERE o.id=?`
+      ).get(req.params.offerId);
+      const crop = offerInfo ? `${offerInfo.emoji} ${offerInfo.crop_name}` : "l'annonce";
+      const name = sender?.full_name || "Quelqu'un";
+      const preview = body.trim().length > 80 ? body.trim().slice(0, 80) + "…" : body.trim();
       notifyUser(recipientId, {
         kind: "message",
         title: `Nouveau message · ${crop}`,
@@ -70,9 +67,39 @@ router.post("/:offerId", authRequired, (req, res) => {
         actor_photo: sender?.avatar || null,
         offer_id: req.params.offerId,
       });
+    } else {
+      // Destinataire inconnu (message du vendeur dans une conversation vierge) :
+      // il n'y a rien à notifier.
     }
   })();
+
+  // Temps réel : le destinataire (et ses autres appareils) reçoit l'événement.
+  if (recipientId) pushTo(recipientId, { type: "message", offerId: req.params.offerId });
+
   res.status(201).json({ ok: true });
+});
+
+// Marque la conversation comme lue pour l'utilisateur courant : ses messages
+// entrants passent à "vu" (double coche pour l'autre partie) et les
+// notifications de message de cette annonce disparaissent de la cloche.
+router.post("/:offerId/read", authRequired, (req, res) => {
+  const offer = db.prepare("SELECT * FROM offers WHERE id=?").get(req.params.offerId);
+  if (!offer) return res.status(404).json({ error: "annonce introuvable" });
+
+  db.transaction(() => {
+    db.prepare(
+      "UPDATE messages SET seen = 1 WHERE offer_id=? AND sender_id<>? AND seen = 0"
+    ).run(req.params.offerId, req.user.sub);
+    db.prepare(
+      "UPDATE notifications SET seen = 1 WHERE user_id=? AND kind='message' AND offer_id=? AND seen = 0"
+    ).run(req.user.sub, req.params.offerId);
+  })();
+
+  // Préviens l'autre partie : ses messages envoyés deviennent "lus" en direct.
+  const counterpart = counterpartOf(db, offer, req.user.sub);
+  if (counterpart) pushTo(counterpart, { type: "seen", offerId: req.params.offerId });
+
+  res.json({ ok: true });
 });
 
 // Suppression d'un message : expéditeur, propriétaire de l'annonce ou admin.

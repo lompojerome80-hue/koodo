@@ -371,6 +371,10 @@ export const demoBackend: DataBackend = {
     await api.post(`/messages/${offerId}`, { body });
   },
 
+  async markMessagesRead(offerId: string) {
+    await api.post(`/messages/${offerId}/read`, {});
+  },
+
   async deleteMessage(offerId: string, messageId: string) {
     await api.del(`/messages/${offerId}/${messageId}`);
   },

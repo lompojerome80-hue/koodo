@@ -1,6 +1,9 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const BASE = API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
 
+// Base API normalisée (sans slash final), réutilisée par le canal temps réel.
+export const API_BASE_URL = BASE;
+
 let token: string | null = localStorage.getItem("koodo_token");
 
 export function setToken(t: string | null) {

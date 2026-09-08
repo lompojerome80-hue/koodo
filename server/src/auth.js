@@ -16,7 +16,10 @@ export function signOtpToken(payload) {
 
 export function authRequired(req, res, next) {
   const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  // Fallback : jeton passé en query (?token=) — utile pour EventSource natif
+  // qui ne peut pas envoyer d'en-tête Authorization.
+  const queryToken = typeof req.query?.token === "string" ? req.query.token : null;
+  const token = header.startsWith("Bearer ") ? header.slice(7) : queryToken;
   if (!token) return res.status(401).json({ error: "Non authentifié" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);

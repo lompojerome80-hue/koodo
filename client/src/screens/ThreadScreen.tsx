@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useApp } from "../store";
 import { data } from "../data";
 import { useToast } from "../hooks/useToast";
+import { onLive } from "../realtime";
 import type { Msg } from "../db/types";
 
 export default function ThreadScreen() {
@@ -15,6 +16,17 @@ export default function ThreadScreen() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const stickToBottom = useRef(true);
+
+  // Marque la conversation comme lue : les messages entrants passent en "vu"
+  // et les notifications de cette conversation disparaissent de la cloche.
+  async function markRead() {
+    if (!offerId) return;
+    try {
+      await data.markMessagesRead(offerId);
+    } catch {
+      /* hors ligne : le prochain polling rejouera l'accusé */
+    }
+  }
 
   useEffect(() => {
     if (!offerId) return;
@@ -34,16 +46,32 @@ export default function ThreadScreen() {
       }
     };
     void load(true).finally(() => { freshLoaded = true; });
+    void markRead();
 
     const poll = setInterval(() => {
       // On reste collé en bas sauf si l'utilisateur remonte pour lire l'historique.
       const el = bottomRef.current?.parentElement;
       stickToBottom.current = el ? el.scrollHeight - el.scrollTop - el.clientHeight < 80 : true;
       void load(true);
+      void markRead();
     }, 3000);
 
-    return () => { cancelled = true; clearInterval(poll); };
-  }, [offerId]);
+    // Temps réel : nouveau message ou accusé de lecture dans cette conversation.
+    const off = onLive((ev) => {
+      if (ev.offerId !== offerId) return;
+      void load(true);
+      if (ev.type === "message") void markRead();
+    });
+
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      off();
+      // On quitte l'écran : confirme la lecture tant qu'on était dans la
+      // conversation (les coches bleues restent à jour).
+      void data.markMessagesRead(offerId).catch(() => {});
+    };
+  }, [offerId, user?.id]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -54,6 +82,7 @@ export default function ThreadScreen() {
       // Recharge les messages : l'id réel du serveur permet sa suppression.
       setMsgs(await data.getMessages(offerId));
       setText("");
+      void markRead();
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (err: any) {
       showToast(err.message || "Envoi impossible");
@@ -94,7 +123,10 @@ export default function ThreadScreen() {
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M10 11v6M14 11v6"/></svg>
                   </button>
                 )}
-                <div className="t">{m.sender_name} · {new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                <div className="t">
+                  {m.sender_name} · {new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  {mine && <span className={`ticks ${m.seen ? "seen" : ""}`} title={m.seen ? "Lu" : "Envoyé"}>{m.seen ? "✓✓" : "✓"}</span>}
+                </div>
               </div>
             );
           })

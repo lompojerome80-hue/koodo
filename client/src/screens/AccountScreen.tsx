@@ -4,6 +4,8 @@ import { useApp } from "../store";
 import { useToast } from "../hooks/useToast";
 import { data, dbMode } from "../data";
 import { useCart } from "../cart";
+import { onLive } from "../realtime";
+import { refreshNotifications } from "../notif";
 import { LANGS, t } from "../i18n";
 import type { Crop, Alert } from "../types";
 import type { Thread, Tx, SellerEscrow } from "../db/types";
@@ -57,7 +59,19 @@ export default function AccountScreen() {
     void refreshThreads();
     void refreshSales();
     const poll = setInterval(() => void refreshThreads(), 5000);
-    return () => clearInterval(poll);
+
+    // Temps réel : un nouveau message met la liste à jour et ravive la cloche.
+    const off = onLive((ev) => {
+      if (ev.type === "message") {
+        void refreshThreads();
+        void refreshNotifications();
+      }
+    });
+
+    return () => {
+      clearInterval(poll);
+      off();
+    };
   }, [user]);
 
   async function refreshSales() {
@@ -378,11 +392,15 @@ export default function AccountScreen() {
             <Link key={t.offer_id} to={`/message/${t.offer_id}`} style={{ textDecoration: "none", color: "inherit" }}>
               <div className="card hover press">
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{t.emoji} {t.crop_name} · {t.quantity} kg</span>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                    {t.emoji} {t.crop_name} · {t.quantity} kg
+                    {t.unread != null && t.unread > 0 && <span className="thread-unread">{t.unread}</span>}
+                  </span>
                   <span className="pill open">{t.other_role === "producer" ? "producteur" : "acheteur"}</span>
                 </div>
                 <p style={{ margin: "5px 0 0", fontSize: 12, color: "var(--muted)" }}>
                   <b style={{ color: "var(--ink)" }}>{t.other_name}</b> — {t.body}
+                  {t.unread != null && t.unread > 0 && <span className="thread-dot" />}
                 </p>
               </div>
             </Link>
