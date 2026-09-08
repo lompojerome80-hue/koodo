@@ -2,7 +2,7 @@ import { API_BASE_URL } from "./api";
 import { getToken } from "./api";
 
 export interface LiveEvent {
-  type: "message" | "seen";
+  type: "message" | "seen" | "order";
   offerId: string;
 }
 type Listener = (ev: LiveEvent) => void;
@@ -31,7 +31,7 @@ function parseChunk(buf: string): LiveEvent[] {
     if (!line) continue;
     try {
       const ev = JSON.parse(line.slice(5).trim()) as LiveEvent;
-      if (ev && (ev.type === "message" || ev.type === "seen") && ev.offerId) evs.push(ev);
+      if (ev && ev.type && ev.offerId) evs.push(ev);
     } catch {
       /* frame invalide, ignorée */
     }

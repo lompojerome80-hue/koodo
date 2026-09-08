@@ -59,7 +59,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     if (!user?.id) return;
     startRealtime();
     const off = onLive((ev) => {
-      if (ev.type === "message") void refreshNotifications();
+      if (ev.type === "message" || ev.type === "order") void refreshNotifications();
     });
     return () => {
       stopRealtime();

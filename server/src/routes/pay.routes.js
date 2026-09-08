@@ -3,8 +3,44 @@ import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
 import { chargePayment, feeFor, verifyWebhookSignature } from "../payments/service.js";
+import { notifyUser } from "../notify.js";
+import { pushTo } from "../realtime.js";
 
 const router = Router();
+
+// Notifie chaque vendeur concerné d'une nouvelle commande (avec la
+// localisation de livraison envoyée par l'acheteur).
+function notifySellers(rows, req, delivery) {
+  const bySeller = new Map();
+  for (const r of rows) {
+    if (!bySeller.has(r.offer.user_id)) bySeller.set(r.offer.user_id, []);
+    bySeller.get(r.offer.user_id).push(r);
+  }
+  const buyer = db.prepare("SELECT full_name, phone, avatar FROM users WHERE id=?").get(req.user.sub);
+  const buyerName = buyer?.full_name || "Un client";
+  const buyerPhone = buyer?.phone || "";
+  for (const [sellerId, lines] of bySeller) {
+    const qtyTotal = lines.reduce((s, l) => s + l.qty, 0);
+    const total = lines.reduce((s, l) => s + l.amount, 0);
+    const first = lines[0];
+    let body = `${buyerName}${buyerPhone ? ` (${buyerPhone})` : ""} · ${qtyTotal} kg pour ${total.toLocaleString("fr-FR")} F`;
+    if (delivery) {
+      const where = delivery.label || `${delivery.lat}, ${delivery.lng}`;
+      body += `\n📍 À livrer ici : ${where}`;
+      if (delivery.note) body += ` — ${delivery.note}`;
+    }
+    notifyUser(sellerId, {
+      kind: "order",
+      title: `Nouvelle commande · ${first.cropName}`,
+      body,
+      actor_name: buyerName,
+      actor_photo: buyer?.avatar || null,
+      offer_id: first.offer.id,
+    });
+    // Temps réel : la cloche du vendeur s'allume dès la commande.
+    pushTo(sellerId, { type: "order", offerId: first.offer.id });
+  }
+}
 
 // Initiation d'un paiement Mobile Money.
 // Corps accepté (au choix) :
@@ -33,7 +69,8 @@ router.post("/charge", authRequired, async (req, res) => {
     if (offer.user_id === req.user.sub) return res.status(403).json({ error: "Impossible d'acheter sa propre annonce" });
     const qty = Number(line.qtyKg) || offer.quantity;
     if (qty > offer.quantity) return res.status(400).json({ error: `Quantité insuffisante pour ${offer.crop_name}` });
-    rows.push({ offer, qty, amount: offer.unit_price * qty });
+    const cropInfo = db.prepare("SELECT c.name crop_name, c.emoji FROM crops c WHERE c.id=?").get(offer.crop_id);
+    rows.push({ offer, qty, amount: offer.unit_price * qty, cropName: cropInfo ? `${cropInfo.emoji} ${cropInfo.crop_name}` : "l'annonce" });
   }
 
   const amount = rows.reduce((s, r) => s + r.amount, 0);
@@ -53,6 +90,8 @@ router.post("/charge", authRequired, async (req, res) => {
       );
       return txId;
     });
+    // Le vendeur reçoit la commande et la position de l'acheteur.
+    notifySellers(rows, req, delivery);
     res.json({ ref, amount, fee, total: amount + fee, mode, txIds, delivery: delivery || null });
   } catch (err) {
     if (req.app.get("env") !== "production") console.error("[pay]", err.message);
@@ -97,6 +136,17 @@ router.post("/register", authRequired, (req, res) => {
       typeof delivery?.note === "string" ? delivery.note : null, "escrow",
       typeof delivery?.label === "string" ? delivery.label : null
     );
+  }
+  // Notifie les vendeurs : nouvelle commande + position de livraison de l'acheteur.
+  try {
+    const sellerLines = items.map((it) => {
+      const offer = db.prepare("SELECT * FROM offers WHERE id=?").get(it.offerId);
+      const cropInfo = offer && db.prepare("SELECT c.name crop_name, c.emoji FROM crops c WHERE c.id=?").get(offer.crop_id);
+      return offer ? { offer, qty: Number(it.qtyKg) || offer.quantity, amount: Number(it.amount), cropName: cropInfo ? `${cropInfo.emoji} ${cropInfo.crop_name}` : "l'annonce" } : null;
+    }).filter(Boolean);
+    if (sellerLines.length) notifySellers(sellerLines, req, delivery);
+  } catch {
+    /* la commande reste tracée même si la notification échoue */
   }
   res.json({ ok: true, orderStatus: "escrow" });
 });
