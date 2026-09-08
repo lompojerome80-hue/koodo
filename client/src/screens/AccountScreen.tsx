@@ -6,10 +6,11 @@ import { data, dbMode } from "../data";
 import { useCart } from "../cart";
 import { onLive } from "../realtime";
 import { refreshNotifications } from "../notif";
+import { requestLocation } from "../geo";
 import { LANGS, t } from "../i18n";
-import type { Crop, Alert } from "../types";
+import type { Crop, Alert, CourierDues, SellerOrder, NearbyCourier } from "../types";
+import { TRANSPORTS } from "../types";
 import type { Thread, Tx, SellerEscrow } from "../db/types";
-import type { CourierDues } from "../types";
 
 // Comptes de démonstration accessibles depuis le sélecteur « Changer de compte ».
 // La bascule se fait par authentification (téléphone + mot de passe du compte choisi).
@@ -19,6 +20,151 @@ const DEMO_ACCOUNTS = [
   { phone: "+2260701000005", label: "Livreur", icon: "🛵" },
   { phone: "+2260701000006", label: "Admin", icon: "🛡️" },
 ];
+
+function formatF(n: number): string {
+  return (Number(n) || 0).toLocaleString("fr-FR");
+}
+
+const transportEmoji = (t?: string | null) =>
+  (t && TRANSPORTS.find((x) => x.label === t)?.emoji) || "🛵";
+
+const DELIVERY_MOVE_LABEL: Record<string, string> = {
+  open: "🟡 course ouverte — livreur à trouver",
+  accepted: "🔵 course acceptée — récupération",
+  picked_up: "🟣 colis récupéré — en livraison",
+  done: "✅ livrée",
+  cancelled: "✖️ annulée",
+};
+
+/** Panneau « Confier au livreur » : le vendeur choisit un livreur proche,
+ *  fixe le prix de la course et confie la commande (position + client inclus). */
+function AssignPanel({ order, onDone, onClose }: { order: SellerOrder; onDone: () => void; onClose: () => void }) {
+  const geo = useApp((s) => s.geo);
+  const showToast = useToast((s) => s.show);
+  const [couriers, setCouriers] = useState<NearbyCourier[] | null>(null);
+  const [sel, setSel] = useState("");
+  const [fee, setFee] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        let g = geo;
+        if (!g?.lat) g = await requestLocation();
+        if (!alive) return;
+        const list = await data.listNearbyCouriers(g?.lat ?? null, g?.lng ?? null);
+        if (alive) setCouriers(list);
+      } catch {
+        if (alive) {
+          setCouriers([]);
+          showToast("Impossible de lister les livreurs");
+        }
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dest = order.delivery?.label || (order.delivery?.lat != null ? `${order.delivery.lat}, ${order.delivery.lng}` : "remis à l'acheteur");
+  const feeNum = Number(fee);
+  const can = !!sel && feeNum >= 100 && feeNum <= 100000;
+
+  async function confirm() {
+    if (!can) return;
+    setBusy(true);
+    try {
+      let g = geo;
+      if (!g?.lat) g = await requestLocation();
+      await data.assignOrderToCourier({
+        txId: order.txId,
+        courierId: sel,
+        priceFee: feeNum,
+        sellerLat: g?.lat ?? null,
+        sellerLng: g?.lng ?? null,
+        sellerLabel: g?.label && g.label !== "…" ? g.label : undefined,
+      });
+      showToast("Commande confiée au livreur 🛵");
+      onDone();
+      onClose();
+    } catch (err: any) {
+      showToast(err.message || "Confiage impossible");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 8, padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <b style={{ fontSize: 13 }}>Confier à un livreur</b>
+        <button className="btn btn-ghost btn-sm" onClick={onClose} disabled={busy}>✕</button>
+      </div>
+      <p style={{ fontSize: 11, color: "var(--muted)", margin: "6px 0 10px" }}>
+        Le livreur récupère chez toi et livre <b style={{ color: "var(--ink)" }}>{order.buyerName}</b>.
+      </p>
+      <p style={{ fontSize: 12, margin: "0 0 8px" }}>
+        📍 <b>{dest}</b>
+        {order.delivery?.note && <span style={{ color: "var(--muted)" }}> — {order.delivery.note}</span>}
+      </p>
+
+      {couriers === null ? (
+        <div className="skeleton" style={{ height: 80 }} />
+      ) : couriers.length === 0 ? (
+        <p className="empty">Aucun livreur disponible pour le moment.</p>
+      ) : (
+        <div className="list" style={{ maxHeight: 260, overflowY: "auto" }}>
+          {couriers.map((c) => (
+            <button
+              key={c.id}
+              className="card hover press"
+              style={{ width: "100%", textAlign: "left", display: "flex", gap: 10, alignItems: "center", padding: 10 }}
+              onClick={() => setSel(c.id)}
+            >
+              <div className="avatar">
+                {c.selfie ? <img src={c.selfie} alt={c.name} /> : <span>{transportEmoji(c.transport)}</span>}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <b style={{ fontSize: 13 }}>
+                  {c.name}
+                  {c.proche && <span className="pill open" style={{ fontSize: 9, marginLeft: 6 }}>proche de toi</span>}
+                </b>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                  {transportEmoji(c.transport)} {c.transport || "livreur"} · {c.locality || c.phone}
+                </p>
+              </div>
+              <input type="radio" checked={sel === c.id} readOnly style={{ accentColor: "var(--orange)" }} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="field" style={{ marginTop: 8 }}>
+        <label>Prix de la course (F) — versé au livreur à la livraison</label>
+        <input
+          type="number"
+          min="100"
+          max="100000"
+          value={fee}
+          onChange={(e) => setFee(e.target.value)}
+          placeholder="ex : 1500"
+          inputMode="numeric"
+        />
+      </div>
+      <button
+        className="btn btn-primary"
+        style={{ marginTop: 8, opacity: can && !busy ? 1 : .6 }}
+        disabled={!can || busy}
+        onClick={confirm}
+      >
+        {busy ? "Confiage…" : "Confier la commande au livreur 🛵"}
+      </button>
+      <p style={{ fontSize: 10, color: "var(--muted2)", margin: "8px 0 0", textAlign: "center" }}>
+        Koodo prélève 10 % de commission sur le prix de la course (ajoutée au dû du livreur).
+      </p>
+    </div>
+  );
+}
 
 export default function AccountScreen() {
   const user = useApp((s) => s.user);
@@ -39,6 +185,9 @@ export default function AccountScreen() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [sales, setSales] = useState<Tx[]>([]);
   const [escrow, setEscrow] = useState<SellerEscrow | null>(null);
+  const [orders, setOrders] = useState<SellerOrder[]>([]);
+  const [orderTab, setOrderTab] = useState<"pending" | "done">("pending");
+  const [assignFor, setAssignFor] = useState<SellerOrder | null>(null);
   const [courierDues, setCourierDues] = useState<CourierDues | null>(null);
   const [alertCrop, setAlertCrop] = useState("mais");
   const [alertPrice, setAlertPrice] = useState("");
@@ -66,6 +215,10 @@ export default function AccountScreen() {
         void refreshThreads();
         void refreshNotifications();
       }
+      if (ev.type === "order" || ev.type === "delivery") {
+        void refreshSales();
+        void refreshNotifications();
+      }
     });
 
     return () => {
@@ -78,6 +231,7 @@ export default function AccountScreen() {
     try { setSales(await data.listTransactions()); } catch {}
     if (user?.role === "producer") {
       try { setEscrow(await data.listSellerEscrow()); } catch { setEscrow(null); }
+      try { setOrders(await data.listSellerOrders()); } catch { setOrders([]); }
     }
     if (user?.role === "courier") {
       try { setCourierDues(await data.courierDues()); } catch { setCourierDues(null); }
@@ -340,6 +494,119 @@ export default function AccountScreen() {
               L'acheteur bloque le paiement tant qu'il n'a pas confirmé la livraison. C'est ta garantie d'un client sérieux.
             </p>
           </div>
+        </>
+      )}
+
+      {isSeller && (
+        <>
+          <p className="section-label">📦 Mes commandes</p>
+          {orders.length === 0 ? (
+            <div className="empty">
+              <p>Aucune commande pour le moment.</p>
+              <p>Quand un acheteur valide son paiement, retrouve sa commande et sa position ici, et confie-la au livreur proche de chez toi.</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 8, margin: "0 0 8px" }}>
+                <button
+                  className={`btn btn-sm ${orderTab === "pending" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ minWidth: 0, flex: 1 }}
+                  onClick={() => setOrderTab("pending")}
+                >
+                  ⏳ En attente ({orders.filter((o) => o.status === "escrow").length})
+                </button>
+                <button
+                  className={`btn btn-sm ${orderTab === "done" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ minWidth: 0, flex: 1 }}
+                  onClick={() => setOrderTab("done")}
+                >
+                  ✅ Validées ({orders.filter((o) => o.status === "delivered").length})
+                </button>
+              </div>
+
+              <div className="list">
+                {(orderTab === "pending"
+                  ? orders.filter((o) => o.status === "escrow")
+                  : orders.filter((o) => o.status === "delivered")
+                ).map((o) => (
+                  <div className="card order-card" key={o.txId}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <b style={{ fontSize: 13 }}>
+                        {o.items[0]?.cropName || "Commande"}
+                        {o.items.length > 1 && <span className="pill pending" style={{ fontSize: 9, marginLeft: 6 }}>+{o.items.length - 1} article(s)</span>}
+                      </b>
+                      <div style={{ textAlign: "right" }}>
+                        <b className="font-mono" style={{ fontSize: 13 }}>{formatF(o.amount)} F</b>
+                        <p style={{ margin: 0, fontSize: 10, color: "var(--muted2)" }}>
+                          {new Date(o.createdAt).toLocaleDateString("fr-FR")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p style={{ margin: "6px 0 0", fontSize: 12 }}>
+                      👤 <b>{o.buyerName}</b> <span className="font-mono" style={{ color: "var(--muted2)", fontSize: 11 }}>{o.buyerPhone}</span>
+                    </p>
+                    {o.delivery && (o.delivery.label || o.delivery.lat != null) && (
+                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                        📍 {o.delivery.label || `${o.delivery.lat}, ${o.delivery.lng}`}
+                        {o.delivery.note && <span> — {o.delivery.note}</span>}
+                      </p>
+                    )}
+                    {o.disputed && (
+                      <p className="error-box" style={{ margin: "6px 0 0" }}>⚠️ Litige ouvert — fonds bloqués</p>
+                    )}
+
+                    {o.deliveryMove ? (
+                      <div style={{ marginTop: 8 }}>
+                        <div className="courier-id">
+                          <div className="avatar"><span>🛵</span></div>
+                          <div>
+                            <b style={{ fontSize: 12 }}>{o.deliveryMove.courierName || "Livreur confié"}</b>
+                            <small style={{ color: "var(--muted2)" }}>
+                              {DELIVERY_MOVE_LABEL[o.deliveryMove.status] || o.deliveryMove.status}
+                            </small>
+                          </div>
+                        </div>
+                        {o.deliveryMove.status !== "done" && o.deliveryMove.status !== "cancelled" && (
+                          <Link to="/livraisons" style={{ textDecoration: "none" }}>
+                            <button className="btn btn-ghost btn-sm" style={{ marginTop: 6, width: "100%" }}>
+                              Voir la course (codes) →
+                            </button>
+                          </Link>
+                        )}
+                      </div>
+                    ) : orderTab === "pending" && !o.disputed ? (
+                      <>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          style={{ marginTop: 8, width: "100%" }}
+                          onClick={() => setAssignFor(assignFor?.txId === o.txId ? null : o)}
+                        >
+                          🛵 {assignFor?.txId === o.txId ? "Fermer" : "Confier au livreur"}
+                        </button>
+                        {assignFor?.txId === o.txId && (
+                          <AssignPanel order={o} onDone={() => void refreshSales()} onClose={() => setAssignFor(null)} />
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              {orderTab === "pending" && orders.filter((o) => o.status === "escrow").length === 0 && (
+                <div className="empty">
+                  <p>Aucune commande en attente.</p>
+                  <p>Quand un acheteur paie, sa commande apparaît ici pour être confiée à un livreur.</p>
+                </div>
+              )}
+              {orderTab === "done" && orders.filter((o) => o.status === "delivered").length === 0 && (
+                <div className="empty">
+                  <p>Aucune commande validée pour l'instant.</p>
+                  <p>Une commande passe ici quand l'acheteur confirme la réception et libère les fonds.</p>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
 

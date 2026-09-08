@@ -1,4 +1,4 @@
-import type { User, Role, Crop, PriceRow, TrendRow, Offer, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment } from "../types";
+import type { User, Role, Crop, PriceRow, TrendRow, Offer, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment, SellerOrder, NearbyCourier, AssignOrderInput } from "../types";
 
 export type Unsub = () => void;
 
@@ -203,10 +203,16 @@ export interface DataBackend {
   openDispute(txId: string, reason: string): Promise<void>;
   /** Vue vendeur : fonds en attente / libérés / litiges. */
   listSellerEscrow(): Promise<SellerEscrow>;
+  /** Commandes reçues par le vendeur (escrow + validées) avec le client et sa position. */
+  listSellerOrders(): Promise<SellerOrder[]>;
 
   // ============================================================
   // Livraisons communautaires (livreur)
   // ============================================================
+  /** Livreurs missionnables proches du vendeur (dossier complet, non bloqué). */
+  listNearbyCouriers(lat?: number | null, lng?: number | null): Promise<NearbyCourier[]>;
+  /** Le vendeur confie directement une commande à un livreur choisi. */
+  assignOrderToCourier(input: AssignOrderInput): Promise<CourseDelivery>;
   /** Liste les courses ouvertes proches (le livreur cherche du travail). */
   listOpenDeliveries(lat?: number | null, lng?: number | null): Promise<CourseDelivery[]>;
   /** Le vendeur crée une course (récupérer chez lui, livrer à l'acheteur). */

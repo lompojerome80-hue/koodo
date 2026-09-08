@@ -5,6 +5,7 @@ import { requestLocation } from "../geo";
 import { data } from "../data";
 import { pickPhoto } from "../components/CourierDossierFields";
 import { refreshNotifications } from "../notif";
+import { onLive } from "../realtime";
 import type { CourseDelivery, CourierDues, User } from "../types";
 import { TRANSPORTS } from "../types";
 
@@ -368,6 +369,17 @@ export default function CourierScreen() {
   }
 
   useEffect(() => { setLoading(true); void load(); }, [user?.id]);
+
+  // Une course confiée par un vendeur apparaît immédiatement (et la cloche s'allume).
+  useEffect(() => {
+    const off = onLive((ev) => {
+      if (ev.type === "delivery") {
+        void load();
+        void refreshNotifications();
+      }
+    });
+    return off;
+  }, []);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();

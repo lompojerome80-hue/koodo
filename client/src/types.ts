@@ -146,6 +146,50 @@ export interface CourierDossier {
   id_back?: string;
 }
 
+export interface NearbyCourier {
+  id: string;
+  name: string;
+  phone: string;
+  locality?: string | null;
+  transport?: string | null;
+  selfie?: string | null;
+  /** Proche de la zone du vendeur (localité/village/région). */
+  proche: boolean;
+  score: number;
+}
+
+export interface SellerOrderItem {
+  offerId: string;
+  cropName: string;
+  qtyKg: number;
+  amount: number;
+}
+
+/** Commande reçue par un vendeur, groupée par panier (client_ref). */
+export interface SellerOrder {
+  txId: string;
+  createdAt: string;
+  status: "escrow" | "delivered";
+  disputed: boolean;
+  amount: number;
+  qty: number;
+  items: SellerOrderItem[];
+  buyerName: string;
+  buyerPhone: string;
+  delivery: { label: string | null; lat: number | null; lng: number | null; note: string | null } | null;
+  /** Course liée quand la commande a été confiée à un livreur. */
+  deliveryMove: { id: string; status: string; courierName: string | null } | null;
+}
+
+export interface AssignOrderInput {
+  txId: string;
+  courierId: string;
+  priceFee: number;
+  sellerLat?: number | null;
+  sellerLng?: number | null;
+  sellerLabel?: string;
+}
+
 export const TRANSPORTS: { label: string; emoji: string }[] = [
   { label: "moto", emoji: "🏍️" },
   { label: "vélo", emoji: "🚲" },

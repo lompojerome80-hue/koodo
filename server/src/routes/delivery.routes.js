@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
 import { notifyUser } from "../notify.js";
+import { pushTo } from "../realtime.js";
 
 const router = Router();
 
@@ -425,6 +426,128 @@ router.post("/:id/cancel", authRequired, (req, res) => {
     if (!["open", "accepted"].includes(d.status)) throw Object.assign(new Error("Impossible d'annuler cette course"), { status: 409 });
     db.prepare("UPDATE deliveries SET status = 'cancelled' WHERE id = ?").run(d.id);
     res.json({ ok: true });
+  } catch (err) {
+    error(res, err);
+  }
+});
+
+// ============================================================
+// Confiage direct : le vendeur choisit un livreur proche pour une commande.
+// ============================================================
+
+// Livreurs missionnables (dossier complet, compte non bloqué), triés par
+// proximité de zone avec le vendeur.
+router.get("/couriers", authRequired, (req, res) => {
+  const seller = db.prepare("SELECT region, village, locality FROM users WHERE id = ?").get(req.user.sub);
+  const tokens = new Set(
+    [seller?.locality, seller?.village, seller?.region]
+      .filter(Boolean).join(" ").toLowerCase()
+      .split(/[\s,.-]+/).filter((w) => w.length > 2)
+  );
+  const rows = db.prepare(
+    `SELECT id, full_name, phone, locality, region, village, transport, selfie
+     FROM users WHERE role = 'courier' AND blocked = 0 ORDER BY full_name`
+  ).all();
+  const couriers = rows
+    .filter((c) => courierDossierOk(c.id))
+    .map((c) => {
+      const text = [c.locality, c.village, c.region].filter(Boolean).join(" ").toLowerCase();
+      const score = [...tokens].filter((w) => text.includes(w)).length;
+      return {
+        id: c.id,
+        name: c.full_name,
+        phone: c.phone,
+        locality: c.locality || null,
+        transport: c.transport || null,
+        selfie: c.selfie || null,
+        proche: score > 0,
+        score,
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  res.json({ couriers });
+});
+
+// Le vendeur confie directement une commande (client_ref) à un livreur qu'il
+// a choisi à proximité. La course naît déjà « acceptée » par ce livreur.
+router.post("/assign", authRequired, (req, res) => {
+  try {
+    const { txId, courierId, priceFee, seller_lat, seller_lng, seller_label } = req.body || {};
+    if (!txId || !courierId) throw Object.assign(new Error("Commande et livreur requis"), { status: 400 });
+    const fee = Number(priceFee);
+    if (!(fee >= 100 && fee <= 100000)) {
+      throw Object.assign(new Error("Prix de la course entre 100 et 100 000 F"), { status: 400 });
+    }
+    const rows = db.prepare(
+      `SELECT t.*, c.name crop_name, c.emoji crop_emoji
+       FROM transactions t JOIN offers o ON o.id = t.offer_id
+       JOIN crops c ON c.id = o.crop_id
+       WHERE t.client_ref = ? AND t.status = 'paid'`
+    ).all(txId);
+    if (!rows.length) throw Object.assign(new Error("Commande introuvable"), { status: 404 });
+    const mine = rows.filter((r) =>
+      db.prepare("SELECT user_id FROM offers WHERE id = ?").get(r.offer_id)?.user_id === req.user.sub
+    );
+    if (mine.length !== rows.length) {
+      throw Object.assign(new Error("Cette commande ne t'appartient pas"), { status: 403 });
+    }
+    const existing = db.prepare(
+      "SELECT id FROM deliveries WHERE tx_ref = ? AND status != 'cancelled' LIMIT 1"
+    ).get(txId);
+    if (existing) throw Object.assign(new Error("Cette commande est déjà confiée à un livreur"), { status: 409 });
+    const courier = db.prepare("SELECT id, full_name FROM users WHERE id = ? AND role = 'courier'").get(courierId);
+    if (!courier) throw Object.assign(new Error("Livreur introuvable"), { status: 404 });
+    assertNotBlockedCourier(courierId);
+
+    const seller = db.prepare("SELECT full_name, phone, region, village FROM users WHERE id = ?").get(req.user.sub);
+    const buyer = db.prepare("SELECT full_name, phone FROM users WHERE id = ?").get(rows[0].buyer_id);
+    const label = rows.map((r) => r.delivery_label).find(Boolean) || null;
+    const lat = rows.map((r) => r.location_lat).find((v) => v != null) ?? null;
+    const lng = rows.map((r) => r.location_lng).find((v) => v != null) ?? null;
+    const note = rows.map((r) => r.delivery_note).find(Boolean) || null;
+    const title = `Commande · ${`${rows[0].crop_emoji || ""} ${rows[0].crop_name}`.trim()}`;
+
+    const pickupCode = code();
+    const deliveryCode = code();
+    const id = nanoid();
+    db.prepare(
+      `INSERT INTO deliveries
+        (id, tx_ref, title, package, seller_id, courier_id, seller_lat, seller_lng, seller_label,
+         buyer_lat, buyer_lng, buyer_label, buyer_phone, price_fee, status, pickup_code, delivery_code, accepted_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'accepted',?,?, datetime('now','localtime'))`
+    ).run(
+      id, txId, title, note, req.user.sub, courierId,
+      Number(seller_lat) || null, Number(seller_lng) || null,
+      String(seller_label || seller?.village || seller?.full_name || ""),
+      lat, lng, String(label || "remis à l'acheteur"),
+      buyer?.phone ? buyer.phone.replace(/[\s\-().]/g, "") : null,
+      fee, pickupCode, deliveryCode
+    );
+
+    const sellerPlace = seller_label || seller?.village || seller?.full_name || "le vendeur";
+    notifyUser(courierId, {
+      kind: "delivery_assigned",
+      title: "Une course t'a été confiée 🙌",
+      body: `${seller?.full_name || "Un vendeur"} te confie « ${title} ». Récupère le colis chez ${sellerPlace}. Code de récupération : ${pickupCode}.`,
+      actor_name: seller?.full_name,
+      delivery_id: id,
+    });
+    if (rows[0].buyer_id && rows[0].buyer_id !== req.user.sub) {
+      notifyUser(rows[0].buyer_id, {
+        kind: "delivery_found",
+        title: "Un livreur prend ta commande",
+        body: `${courier.full_name} apporte « ${title} » — il récupère le colis chez le vendeur puis te le remet.`,
+        actor_name: courier.full_name,
+        delivery_id: id,
+      });
+    }
+    pushTo(courierId, { type: "delivery", deliveryId: id });
+    pushTo(rows[0].buyer_id, { type: "delivery", deliveryId: id });
+
+    const row = db.prepare(`${SELECT_JOINED} WHERE d.id = ?`).get(id);
+    res.status(201).json({
+      delivery: courierRow({ ...row, me_lat: seller_lat ?? null, me_lng: seller_lng ?? null }, req.user.sub),
+    });
   } catch (err) {
     error(res, err);
   }

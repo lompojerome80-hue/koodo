@@ -2,8 +2,9 @@ import { API_BASE_URL } from "./api";
 import { getToken } from "./api";
 
 export interface LiveEvent {
-  type: "message" | "seen" | "order";
-  offerId: string;
+  type: "message" | "seen" | "order" | "delivery";
+  offerId?: string;
+  deliveryId?: string;
 }
 type Listener = (ev: LiveEvent) => void;
 
@@ -31,7 +32,7 @@ function parseChunk(buf: string): LiveEvent[] {
     if (!line) continue;
     try {
       const ev = JSON.parse(line.slice(5).trim()) as LiveEvent;
-      if (ev && ev.type && ev.offerId) evs.push(ev);
+      if (ev && ev.type && (ev.offerId || ev.deliveryId)) evs.push(ev);
     } catch {
       /* frame invalide, ignorée */
     }
@@ -65,7 +66,7 @@ export function startRealtime() {
             es.onmessage = (e) => {
               try {
                 const ev = JSON.parse(e.data) as LiveEvent;
-                if (ev && ev.type && ev.offerId) emit(ev);
+                if (ev && ev.type && (ev.offerId || ev.deliveryId)) emit(ev);
               } catch {}
             };
             es.addEventListener("error", onErr);

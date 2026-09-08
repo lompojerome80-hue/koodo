@@ -32,7 +32,7 @@ import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "fir
 import { SEED_CROPS, SEED_MARKETS, seedPricesFor } from "./seed";
 import { makeTicketRef } from "../payments/providers";
 import type { DataBackend, NewOffer, RegisterInput, StartPaymentInput, CheckoutInput, GoogleProfileInput } from "./types";
-import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CourierDueDay, CreateDeliveryInput, AppNotification, AdminCourier, AdminPayment } from "../types";
+import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CourierDueDay, CreateDeliveryInput, AppNotification, AdminCourier, AdminPayment, SellerOrder, NearbyCourier, AssignOrderInput } from "../types";
 
 let _db: ReturnType<typeof getFirestore> | null = null;
 let _auth: ReturnType<typeof getAuth> | null = null;
@@ -859,6 +859,18 @@ id: d.id,
       disputed: true,
       disputeReason: reason,
     });
+  },
+
+  async listSellerOrders(): Promise<SellerOrder[]> {
+    return [];
+  },
+
+  async listNearbyCouriers(lat?: number | null, lng?: number | null): Promise<NearbyCourier[]> {
+    return [];
+  },
+
+  async assignOrderToCourier(input: AssignOrderInput): Promise<CourseDelivery> {
+    throw new Error("Disponible en mode Koodo Cloud");
   },
 
   async listSellerEscrow(): Promise<import("./types").SellerEscrow> {

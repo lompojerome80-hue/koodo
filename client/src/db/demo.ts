@@ -4,7 +4,7 @@ import { useApp } from "../store";
 import { seedPricesFor, jitterRows } from "./seed";
 import { makeTicketRef } from "../payments/providers";
 import type { DataBackend, NewOffer, RegisterInput, StartPaymentInput, CheckoutInput } from "./types";
-import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment } from "../types";
+import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment, SellerOrder, NearbyCourier, AssignOrderInput } from "../types";
 import { nanoid } from "nanoid";
 
 // Décrémente le stock serveur après un achat (mode démo / Express).
@@ -463,6 +463,29 @@ export const demoBackend: DataBackend = {
 
   async listSellerEscrow() {
     return await api.get<import("./types").SellerEscrow>("/payments/escrow");
+  },
+
+  async listSellerOrders() {
+    const res = await api.get<{ orders: SellerOrder[] }>("/payments/orders");
+    return res.orders;
+  },
+
+  async listNearbyCouriers(lat?: number | null, lng?: number | null) {
+    const q = lat != null && lng != null ? `?lat=${lat}&lng=${lng}` : "";
+    const res = await api.get<{ couriers: NearbyCourier[] }>(`/deliveries/couriers${q}`);
+    return res.couriers;
+  },
+
+  async assignOrderToCourier(input: AssignOrderInput) {
+    const res = await api.post<{ delivery: any }>("/deliveries/assign", {
+      txId: input.txId,
+      courierId: input.courierId,
+      priceFee: input.priceFee,
+      seller_lat: input.sellerLat ?? null,
+      seller_lng: input.sellerLng ?? null,
+      seller_label: input.sellerLabel,
+    });
+    return mapDelivery(res.delivery);
   },
 
   async listTransactions() {
