@@ -4,6 +4,7 @@ import db from "../db.js";
 import { authRequired } from "../auth.js";
 import { notifyUser } from "../notify.js";
 import { pushTo } from "../realtime.js";
+import { releaseEscrow } from "./pay.routes.js";
 
 const router = Router();
 
@@ -396,6 +397,31 @@ router.post("/:id/complete", authRequired, (req, res) => {
         actor_photo: courier.photo,
         delivery_id: d.id,
       });
+    }
+    // Libération AUTOMATIQUE du paiement de l'acheteur : la remise du colis
+    // (scan du QR ou code client validé par le livreur) vaut preuve de livraison.
+    // Si un litige est ouvert, les fonds restent volontairement bloqués.
+    const rel = d.tx_ref ? releaseEscrow(d.tx_ref) : { released: false, reason: "none", sellers: [] };
+    if (rel.released) {
+      for (const sid of rel.sellers) {
+        notifyUser(sid, {
+          kind: "payment_released",
+          title: "Paiement libéré 💰",
+          body: `Le client a reçu « ${d.title} » (livré par ${courier.full_name}) — ton paiement est libéré.`,
+          actor_name: courier.full_name,
+          actor_photo: courier.photo,
+          delivery_id: d.id,
+        });
+      }
+      const buyerId = buyerIdOf(d);
+      if (buyerId && buyerId !== req.user.sub) {
+        notifyUser(buyerId, {
+          kind: "payment_released",
+          title: "Paiement libéré au vendeur ✅",
+          body: `« ${d.title} » a été remis — le vendeur vient d'être payé. Merci pour ta confiance !`,
+          delivery_id: d.id,
+        });
+      }
     }
     const row = db.prepare(`${SELECT_JOINED} WHERE d.id = ?`).get(d.id);
     const dues = db

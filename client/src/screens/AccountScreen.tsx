@@ -188,6 +188,9 @@ export default function AccountScreen() {
   const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [orderTab, setOrderTab] = useState<"pending" | "done">("pending");
   const [assignFor, setAssignFor] = useState<SellerOrder | null>(null);
+  const [disputeFor, setDisputeFor] = useState<SellerOrder | null>(null);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeBusy, setDisputeBusy] = useState<string | null>(null);
   const [courierDues, setCourierDues] = useState<CourierDues | null>(null);
   const [alertCrop, setAlertCrop] = useState("mais");
   const [alertPrice, setAlertPrice] = useState("");
@@ -243,6 +246,23 @@ export default function AccountScreen() {
   }
   async function refreshThreads() {
     try { setThreads(await data.listThreads()); } catch {}
+  }
+
+  async function openSellerDispute(o: SellerOrder) {
+    const reason = disputeReason.trim();
+    if (!reason) return;
+    setDisputeBusy(o.txId);
+    try {
+      await data.openDispute(o.txId, reason);
+      showToast("Litige signalé — les fonds restent bloqués");
+      setDisputeFor(null);
+      setDisputeReason("");
+      void refreshSales();
+    } catch (err: any) {
+      showToast(err.message || "Impossible d'ouvrir le litige");
+    } finally {
+      setDisputeBusy(null);
+    }
   }
 
   async function addAlert(e: React.FormEvent) {
@@ -589,6 +609,36 @@ export default function AccountScreen() {
                         )}
                       </>
                     ) : null}
+
+                    {orderTab === "pending" && !o.disputed && (
+                      <>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ marginTop: 6, width: "100%", color: "var(--danger, #c0392b)" }}
+                          onClick={() => setDisputeFor(disputeFor?.txId === o.txId ? null : o)}
+                        >
+                          {disputeFor?.txId === o.txId ? "Fermer" : "⚠️ Signaler un litige"}
+                        </button>
+                        {disputeFor?.txId === o.txId && (
+                          <div style={{ marginTop: 6 }}>
+                            <textarea
+                              style={{ height: 52, width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--paper)", color: "var(--ink)", fontFamily: "inherit", fontSize: 13, boxSizing: "border-box" }}
+                              placeholder="Ex. : colis livré mais je n'ai pas encore reçu mon paiement…"
+                              value={disputeReason}
+                              onChange={(e) => setDisputeReason(e.target.value)}
+                            />
+                            <button
+                              className="btn btn-danger btn-sm"
+                              style={{ width: "100%", marginTop: 6, opacity: disputeBusy === o.txId || !disputeReason.trim() ? .6 : 1 }}
+                              disabled={disputeBusy === o.txId || !disputeReason.trim()}
+                              onClick={() => void openSellerDispute(o)}
+                            >
+                              {disputeBusy === o.txId ? "Envoi…" : "Envoyer le litige"}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

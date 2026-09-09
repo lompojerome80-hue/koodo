@@ -151,9 +151,36 @@ router.post("/register", authRequired, (req, res) => {
   res.json({ ok: true, orderStatus: "escrow" });
 });
 
+// Libère l'escrow d'une commande (client_ref) vers le(s) vendeur(s).
+// Idempotent. Bloqué si un litige est ouvert : les fonds restent alors en attente.
+// Utilisé à la fois par la confirmation de l'acheteur et par la remise du colis
+// par le livreur (scan du code client) — libération automatique.
+export function releaseEscrow(txId) {
+  const rows = db.prepare(
+    "SELECT offer_id FROM transactions WHERE client_ref=? AND status='paid'"
+  ).all(txId);
+  if (!rows.length) return { released: false, reason: "none", sellers: [] };
+  const blocked = db.prepare(
+    "SELECT 1 FROM transactions WHERE client_ref=? AND disputed=1 LIMIT 1"
+  ).get(txId);
+  if (blocked) return { released: false, reason: "disputed", sellers: [] };
+  db.prepare(
+    "UPDATE transactions SET order_status='delivered', disputed=0, confirmed_at=datetime('now') WHERE client_ref=?"
+  ).run(txId);
+  // Temps réel : le(s) vendeur(s) voient la commande passer dans « Validées ».
+  const sellers = new Set();
+  for (const r of rows) {
+    const o = db.prepare("SELECT user_id FROM offers WHERE id=?").get(r.offer_id);
+    if (o?.user_id) sellers.add(o.user_id);
+  }
+  for (const sid of sellers) pushTo(sid, { type: "order", offerId: rows[0].offer_id });
+  return { released: true, reason: "ok", sellers: [...sellers] };
+}
+
 // L'acheteur confirme la réception → les fonds sont libérés au vendeur.
 // Tant qu'un livreur est en course (récupérée ou en route), la libération reste
-// bloquée : l'acheteur débloque la somme dès que le colis est remis.
+// bloquée : elle a alors lieu automatiquement à la remise du colis par le livreur
+// (scan ou code client — voir deliveries.complete).
 router.post("/confirm", authRequired, (req, res) => {
   const { txId } = req.body || {};
   if (!txId) return res.status(400).json({ error: "txId requis" });
@@ -166,15 +193,8 @@ router.post("/confirm", authRequired, (req, res) => {
   if (active) {
     return res.status(409).json({ error: "La commande est en cours de livraison — les fonds seront libérés à la remise du colis" });
   }
-  db.prepare("UPDATE transactions SET order_status='delivered', disputed=0, confirmed_at=datetime('now') WHERE client_ref=?").run(txId);
-  // Temps réel : le(s) vendeur(s) voient la commande passer dans « Validées ».
-  const sellers = new Set();
-  for (const r of rows) {
-    const o = db.prepare("SELECT user_id FROM offers WHERE id=?").get(r.offer_id);
-    if (o?.user_id && o.user_id !== req.user.sub) sellers.add(o.user_id);
-  }
-  for (const sid of sellers) pushTo(sid, { type: "order", offerId: rows[0].offer_id });
-  res.json({ ok: true, orderStatus: "delivered" });
+  const rel = releaseEscrow(txId);
+  res.json({ ok: true, orderStatus: "delivered", released: rel.released });
 });
 
 // Litige : l'acheteur ou le vendeur bloque la libération des fonds.
