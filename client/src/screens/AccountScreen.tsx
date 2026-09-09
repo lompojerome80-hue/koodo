@@ -377,8 +377,7 @@ export default function AccountScreen() {
                       <input
                         ref={receiptRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        capture="environment"
+                        accept="image/*"
                         style={{ display: "none" }}
                         onChange={async (e) => {
                           const f = e.target.files?.[0];
@@ -387,7 +386,7 @@ export default function AccountScreen() {
                             const { pickPhoto } = await import("../components/CourierDossierFields");
                             setSettleReceipt(await pickPhoto(f, 900));
                           } catch {
-                            showToast("Capture impossible");
+                            showToast("Capture impossible — choisis la photo en galerie si la caméra échoue.");
                           }
                         }}
                       />

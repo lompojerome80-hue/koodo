@@ -60,7 +60,7 @@ function DossierCard({ user, onSaved }: { user: User; onSaved: (u: User) => void
       else if (field === "front") setIdFront(url);
       else setIdBack(url);
     } catch (err: any) {
-      showToast(err.message || "Photo impossible");
+      showToast((err.message || "Photo impossible") + " — tu peux aussi choisir une photo en galerie.");
     }
   }
 
@@ -69,8 +69,7 @@ function DossierCard({ user, onSaved }: { user: User; onSaved: (u: User) => void
       <input
         ref={ref}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture={field === "selfie" ? "user" : "environment"}
+        accept="image/*"
         style={{ display: "none" }}
         onChange={(e) => setPhoto(e.target.files?.[0], field)}
       />
@@ -441,8 +440,7 @@ export default function CourierScreen() {
                     <input
                       ref={receiptRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      capture="environment"
+                      accept="image/*"
                       style={{ display: "none" }}
                       onChange={async (e) => {
                         const f = e.target.files?.[0];
@@ -450,7 +448,7 @@ export default function CourierScreen() {
                         try {
                           setReceipt(await pickPhoto(f, 900));
                         } catch {
-                          showToast("Capture impossible");
+                          showToast("Capture impossible — choisis la photo en galerie si la caméra échoue.");
                         }
                       }}
                     />

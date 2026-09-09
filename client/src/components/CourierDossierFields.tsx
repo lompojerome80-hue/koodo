@@ -47,7 +47,10 @@ export default function CourierDossierFields({ value, onChange }: Props) {
       const dataUrl = await pickPhoto(file, field === "selfie" ? 700 : 1100);
       onChange({ ...value, [field]: dataUrl });
     } catch (err: any) {
-      alert(err.message || "Photo impossible — réessaie");
+      alert(
+        (err?.message || "Photo impossible — réessaie") +
+          " Tu peux choisir une photo déjà prise (galerie) au lieu de la prendre à la seconde."
+      );
     }
   }
 
@@ -55,7 +58,7 @@ export default function CourierDossierFields({ value, onChange }: Props) {
     const src = value[field];
     return (
       <div className="photo-box">
-        <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" capture={field === "selfie" ? "user" : "environment"} style={{ display: "none" }} onChange={(e) => setPhoto(e.target.files?.[0], field)} />
+        <input ref={ref} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => setPhoto(e.target.files?.[0], field)} />
         <button type="button" className="photo-thumb" onClick={() => ref.current?.click()}>
           {src ? <img src={src} alt={label} /> : <span>📷</span>}
         </button>
