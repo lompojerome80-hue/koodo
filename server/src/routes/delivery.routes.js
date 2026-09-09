@@ -268,9 +268,10 @@ router.get("/dues", authRequired, (req, res) => {
   res.json(duesOf(req.user.sub));
 });
 
-// Règlement du dû. Sans capture : règlement immédiat (simulation démo).
-// Avec capture d'écran du paiement : le règlement passe en « pending » et c'est
-// l'admin qui le confirme (déblocage du compte) dans la console admin.
+// Règlement du dû du jour. La capture d'écran du paiement est OBLIGATOIRE :
+// c'est elle qui atteste le règlement auprès de l'admin. Le règlement passe en
+// « pending », le compte reste bloqué, et l'admin le confirme dans la console
+// (le dû repasse alors à zéro et le compte est débloqué).
 router.post("/dues/settle", authRequired, (req, res) => {
   const u = blockedFor(req.user.sub);
   if (u?.role && u.role !== "courier") {
@@ -280,31 +281,22 @@ router.post("/dues/settle", authRequired, (req, res) => {
     typeof req.body?.receipt_image === "string" && req.body.receipt_image.length > 100
       ? req.body.receipt_image
       : null;
+  if (!receipt) {
+    return res.status(400).json({ error: "Capture d'écran obligatoire — joins la preuve de ton règlement" });
+  }
   const dues = duesOf(req.user.sub);
+  if (dues.pendingPayment) {
+    return res.status(409).json({ error: "Un règlement est déjà en attente de vérification par l'admin" });
+  }
   const pId = nanoid();
-
-  if (receipt) {
-    db.prepare(
-      "INSERT INTO payments (id, courier_id, amount, receipt, status, created_at) VALUES (?,?,?,?, 'pending', datetime('now','localtime'))"
-    ).run(pId, req.user.sub, dues.totalUnpaid, receipt);
-    db.prepare("UPDATE users SET blocked = 1, blocked_reason = ? WHERE id = ?").run(
-      "Paiement envoyé — en attente de vérification par l'admin",
-      req.user.sub
-    );
-    return res.json({ ok: true, pending: true, ...duesOf(req.user.sub) });
-  }
-
   db.prepare(
-    "INSERT INTO payments (id, courier_id, amount, receipt, status, created_at) VALUES (?,?,?,NULL, 'confirmed', datetime('now','localtime'))"
-  ).run(pId, req.user.sub, dues.totalUnpaid);
-  db.prepare(
-    `UPDATE courier_dues SET paid = 1, paid_at = datetime('now','localtime') WHERE courier_id = ? AND paid = 0`
-  ).run(req.user.sub);
-  const past = dailyUnpaid().some((r) => r.courier_id === req.user.sub);
-  if (!past) {
-    db.prepare("UPDATE users SET blocked = 0, blocked_reason = NULL WHERE id = ?").run(req.user.sub);
-  }
-  res.json({ ok: true, pending: false, ...duesOf(req.user.sub) });
+    "INSERT INTO payments (id, courier_id, amount, receipt, status, created_at) VALUES (?,?,?,?, 'pending', datetime('now','localtime'))"
+  ).run(pId, req.user.sub, dues.totalUnpaid, receipt);
+  db.prepare("UPDATE users SET blocked = 1, blocked_reason = ? WHERE id = ?").run(
+    "Paiement envoyé — en attente de vérification par l'admin",
+    req.user.sub
+  );
+  res.json({ ok: true, pending: true, ...duesOf(req.user.sub) });
 });
 
 // Le livreur accepte la course → le vendeur lui donne le code de récupération.

@@ -436,7 +436,7 @@ export default function CourierScreen() {
                 <>
                   <label style={{ display: "block", fontSize: 12, margin: "4px 0 8px", cursor: "pointer" }}>
                     <span style={{ textDecoration: "underline", color: "var(--ink)" }}>
-                      {receipt ? "Changer la capture" : "Joindre la capture du paiement (optionnel)"}
+                      {receipt ? "Changer la capture" : "Joindre la capture du paiement (obligatoire)"}
                     </span>
                     <input
                       ref={receiptRef}
@@ -465,19 +465,16 @@ export default function CourierScreen() {
                   )}
                   <button
                     className="btn btn-primary btn-sm"
-                    style={{ width: "100%", opacity: busySettle ? .7 : 1 }}
-                    disabled={busySettle}
+                    style={{ width: "100%", opacity: busySettle || !receipt ? .7 : 1 }}
+                    disabled={busySettle || !receipt}
                     onClick={async () => {
+                      if (!receipt) return showToast("Capture d'écran obligatoire — joins la preuve de ton règlement");
                       setBusySettle(true);
                       try {
-                        const d = await data.settleDues(receipt || undefined);
+                        const d = await data.settleDues(receipt);
                         setDues(d);
                         refreshNotifications().catch(() => {});
-                        showToast(
-                          d.pendingPayment
-                            ? "Paiement envoyé — en attente de vérification admin ✓"
-                            : "Dû réglé — compte débloqué ✓"
-                        );
+                        showToast(d.pendingPayment ? "Paiement envoyé — en attente de vérification admin ✓" : "Dû réglé — compte débloqué ✓");
                       } catch (err: any) {
                         showToast(err.message || "Règlement impossible");
                       } finally {
@@ -486,7 +483,7 @@ export default function CourierScreen() {
                       await load();
                     }}
                   >
-                    {busySettle ? "Envoi…" : `Régler mon dû (${formatF(dues.totalUnpaid)} F)`}
+                    {busySettle ? "Envoi…" : !receipt ? "Joins la capture puis règle" : `Régler mon dû (${formatF(dues.totalUnpaid)} F)`}
                   </button>
                 </>
               )}

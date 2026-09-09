@@ -5,7 +5,7 @@ import { data } from "../data";
 import { getProvider } from "../payments/providers";
 import { useToast } from "../hooks/useToast";
 import type { Tx } from "../db/types";
-import type { CourseDelivery } from "../types";
+import type { CourseDelivery, BuyerOrder } from "../types";
 
 export default function ReceiptScreen() {
   const { txId } = useParams();
@@ -15,6 +15,7 @@ export default function ReceiptScreen() {
   const showToast = useToast((s) => s.show);
   const [tx, setTx] = useState<Tx | null>(null);
   const [myCourse, setMyCourse] = useState<CourseDelivery | null>(null);
+  const [myOrder, setMyOrder] = useState<BuyerOrder | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -27,12 +28,17 @@ export default function ReceiptScreen() {
       if (found?.delivery) {
         try { setMyCourse(await data.deliveryForMe()); } catch {}
       }
+      // État serveur : course liée + éligibilité de la libération des fonds.
+      const purchases = await data.listMyPurchases().catch(() => []);
+      const order = purchases.find((p) => p.txId === txId);
+      if (order) setMyOrder(order);
     })();
   }, [txId]);
 
   const refFromNav = (location.state as any)?.ref as string | undefined;
   const provider = tx ? getProvider(tx.provider) : null;
   const multi = !!tx?.items?.length;
+  const courseActive = !!myOrder?.deliveryMove && ["open", "accepted", "picked_up"].includes(myOrder.deliveryMove.status);
 
   async function confirmDelivery() {
     if (!tx) return;
@@ -41,8 +47,8 @@ export default function ReceiptScreen() {
       await data.confirmDelivery(tx.id);
       setTx({ ...tx, order_status: "delivered" });
       showToast("Fonds libérés au vendeur ✓");
-    } catch {
-      showToast("Impossible de confirmer pour le moment");
+    } catch (err: any) {
+      showToast(err.message || "Impossible de confirmer pour le moment");
     } finally {
       setConfirming(false);
     }
@@ -173,11 +179,21 @@ export default function ReceiptScreen() {
               <>
                 <b style={{ fontSize: 12 }}>🔒 Fonds en attente</b>
                 <p style={{ fontSize: 11, margin: "4px 0 8px" }}>
-                  Ton paiement est sécurisé. Il sera versé au vendeur dès que tu confirmes la livraison.
+                  {courseActive
+                    ? "Ton colis est en cours de livraison. Les fonds seront libérés au vendeur dès la remise du colis par le livreur."
+                    : "Ton paiement est sécurisé. Il sera versé au vendeur dès que tu confirmes la livraison."}
                 </p>
-                <button className="btn btn-primary" style={{ width: "100%" }} disabled={confirming} onClick={confirmDelivery}>
-                  {confirming ? "Confirmation…" : "J'ai reçu ma livraison ✓"}
-                </button>
+                {courseActive ? (
+                  <div className="info-card" style={{ padding: "8px 10px", fontSize: 12, margin: 0 }}>
+                    🚚 Course en cours
+                    {myOrder?.deliveryMove?.courierName ? ` · ${myOrder.deliveryMove.courierName}` : ""} — tu pourras
+                    libérer les fonds ici une fois le colis reçu.
+                  </div>
+                ) : (
+                  <button className="btn btn-primary" style={{ width: "100%" }} disabled={confirming} onClick={confirmDelivery}>
+                    {confirming ? "Confirmation…" : "J'ai reçu ma livraison / Libérer les fonds ✓"}
+                  </button>
+                )}
                 {!disputeOpen ? (
                   <button className="btn btn-ghost" style={{ width: "100%", marginTop: 8 }} onClick={() => setDisputeOpen(true)}>
                     Signaler un litige

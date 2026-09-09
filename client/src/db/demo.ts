@@ -471,6 +471,11 @@ export const demoBackend: DataBackend = {
     return res.orders;
   },
 
+  async listMyPurchases() {
+    const res = await api.get<{ purchases: import("../types").BuyerOrder[] }>("/payments/purchases");
+    return res.purchases;
+  },
+
   async listNearbyCouriers(lat?: number | null, lng?: number | null) {
     const q = lat != null && lng != null ? `?lat=${lat}&lng=${lng}` : "";
     const res = await api.get<{ couriers: NearbyCourier[] }>(`/deliveries/couriers${q}`);

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
+import { pushTo } from "../realtime.js";
 
 const router = Router();
 
@@ -77,6 +78,8 @@ router.post("/payments/:id/confirm", authRequired, adminOnly, (req, res) => {
   if (unpaid === 0) {
     db.prepare("UPDATE users SET blocked = 0, blocked_reason = NULL WHERE id = ?").run(p.courier_id);
   }
+  // Temps réel : le livreur voit son dû repasser à zéro et son compte débloqué.
+  pushTo(p.courier_id, { type: "delivery" });
   res.json({ ok: true, paymentId: p.id, courierId: p.courier_id });
 });
 

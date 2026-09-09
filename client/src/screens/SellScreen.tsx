@@ -3,8 +3,16 @@ import { useApp } from "../store";
 import { useToast } from "../hooks/useToast";
 import { data } from "../data";
 import { persistGeo, applyGeoToField } from "../geo";
-import type { Tx } from "../db/types";
 import { getProvider } from "../payments/providers";
+import type { BuyerOrder } from "../types";
+
+const COURSE_LABEL: Record<string, string> = {
+  open: "🟡 livreur à trouver",
+  accepted: "🔵 récupération du colis",
+  picked_up: "🟣 en livraison",
+  done: "✅ livrée",
+  cancelled: "✖️ annulée",
+};
 
 export default function SellScreen() {
   const user = useApp((s) => s.user);
@@ -21,7 +29,8 @@ export default function SellScreen() {
   const [photo, setPhoto] = useState("");
   const [busy, setBusy] = useState(false);
   const [geolocating, setGeolocating] = useState(false);
-  const [purchases, setPurchases] = useState<Tx[] | null>(null);
+  const [purchases, setPurchases] = useState<BuyerOrder[] | null>(null);
+  const [releaseBusy, setReleaseBusy] = useState("");
 
   useEffect(() => {
     if (!loc) setLoc(applyGeoToField("latlng"));
@@ -104,9 +113,31 @@ export default function SellScreen() {
     }
   }
 
-  function loadPurchases() {
-    if (purchases) return;
-    void data.listTransactions().then(setPurchases).catch(() => setPurchases([]));
+  async function loadPurchases() {
+    try {
+      setPurchases(await data.listMyPurchases());
+    } catch {
+      setPurchases([]);
+    }
+  }
+
+  // Les achats se chargent tout seuls pour l'acheteur (bouton = recharger).
+  useEffect(() => {
+    if (user?.role && user.role !== "producer") void loadPurchases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  async function releaseFunds(o: BuyerOrder) {
+    setReleaseBusy(o.txId);
+    try {
+      await data.confirmDelivery(o.txId);
+      showToast("Fonds libérés au vendeur ✓");
+      await loadPurchases();
+    } catch (err: any) {
+      showToast(err.message || "Libération impossible");
+    } finally {
+      setReleaseBusy("");
+    }
   }
 
   const isSeller = user?.role === "producer";
@@ -215,19 +246,41 @@ export default function SellScreen() {
           ) : (
             <div className="list">
               {(purchases || []).map((t) => (
-                <div className="card offer-card" key={t.id}>
-                  <div className="left">
-                    <p style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="provider-logo" style={{ width: 30, height: 30, borderRadius: 8, background: getProvider(t.provider).color, fontSize: 9 }}>{getProvider(t.provider).logo}</span>
-                      {t.provider_name}
-                    </p>
-                    <p className="font-mono">{t.total.toLocaleString("fr-FR")} F CFA</p>
-                    <p style={{ fontSize: 11, color: "var(--muted)" }} className="font-mono">Réf : {t.ref}</p>
+                <div className="card offer-card" key={t.txId} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <div className="left">
+                      <p style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="provider-logo" style={{ width: 30, height: 30, borderRadius: 8, background: getProvider(t.provider).color, fontSize: 9 }}>{getProvider(t.provider).logo}</span>
+                        {getProvider(t.provider).name}
+                      </p>
+                      <p className="font-mono">{t.amount.toLocaleString("fr-FR")} F CFA</p>
+                      <p style={{ fontSize: 11, color: "var(--muted)" }} className="font-mono">Réf : {t.reference || t.txId}</p>
+                    </div>
+                    {t.disputed ? (
+                      <span className="pill pending">⚠️ litige</span>
+                    ) : t.status === "delivered" ? (
+                      <span className="pill open">fonds libérés</span>
+                    ) : t.releaseable ? (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={releaseBusy === t.txId}
+                        style={{ opacity: releaseBusy === t.txId ? .7 : 1 }}
+                        onClick={() => releaseFunds(t)}
+                      >
+                        {releaseBusy === t.txId ? "Libération…" : "🔓 Libérer les fonds"}
+                      </button>
+                    ) : (
+                      <span className="pill pending">🚚 course en cours</span>
+                    )}
                   </div>
-                  <span className="pill open">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
-                    payé
-                  </span>
+                  <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
+                    {t.items.map((it) => it.cropName).join(" · ") || "Produit"} — {t.sellerName || "vendeur"}
+                  </p>
+                  {t.deliveryMove && (
+                    <p style={{ fontSize: 11, color: "var(--muted2)", margin: 0 }}>
+                      📦 {COURSE_LABEL[t.deliveryMove.status] || "livraison"}{t.deliveryMove.courierName ? ` · ${t.deliveryMove.courierName}` : ""}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

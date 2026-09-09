@@ -1,4 +1,4 @@
-import type { User, Role, Crop, PriceRow, TrendRow, Offer, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment, SellerOrder, NearbyCourier, AssignOrderInput } from "../types";
+import type { User, Role, Crop, PriceRow, TrendRow, Offer, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment, SellerOrder, BuyerOrder, NearbyCourier, AssignOrderInput } from "../types";
 
 export type Unsub = () => void;
 
@@ -205,6 +205,8 @@ export interface DataBackend {
   listSellerEscrow(): Promise<SellerEscrow>;
   /** Commandes reçues par le vendeur (escrow + validées) avec le client et sa position. */
   listSellerOrders(): Promise<SellerOrder[]>;
+  /** Achats de l'acheteur (fonds en attente / libérés) avec le vendeur et le suivi de course. */
+  listMyPurchases(): Promise<BuyerOrder[]>;
 
   // ============================================================
   // Livraisons communautaires (livreur)

@@ -32,7 +32,7 @@ import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "fir
 import { SEED_CROPS, SEED_MARKETS, seedPricesFor } from "./seed";
 import { makeTicketRef } from "../payments/providers";
 import type { DataBackend, NewOffer, RegisterInput, StartPaymentInput, CheckoutInput, GoogleProfileInput } from "./types";
-import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CourierDueDay, CreateDeliveryInput, AppNotification, AdminCourier, AdminPayment, SellerOrder, NearbyCourier, AssignOrderInput } from "../types";
+import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CourierDueDay, CreateDeliveryInput, AppNotification, AdminCourier, AdminPayment, SellerOrder, BuyerOrder, NearbyCourier, AssignOrderInput } from "../types";
 
 let _db: ReturnType<typeof getFirestore> | null = null;
 let _auth: ReturnType<typeof getAuth> | null = null;
@@ -865,6 +865,10 @@ id: d.id,
     return [];
   },
 
+  async listMyPurchases(): Promise<BuyerOrder[]> {
+    return [];
+  },
+
   async listNearbyCouriers(lat?: number | null, lng?: number | null): Promise<NearbyCourier[]> {
     return [];
   },
@@ -1038,29 +1042,21 @@ id: d.id,
   async settleDues(receiptImage?: string) {
     const me = await refreshSelf();
     if (!me) return { blocked: false, dueToday: 0, totalUnpaid: 0, days: [] };
+    if (!receiptImage) throw new Error("Capture d'écran obligatoire — joins la preuve de ton règlement");
     const docs = await duesDocs(me.id);
     const totalUnpaid = docs.reduce((s, d) => (d.paid ? s : s + (d.amount || 0)), 0);
     const pid = nanoid();
     const receipt = await uploadImg(receiptImage, "receipt");
+    // Capture envoyée : le règlement reste en attente de confirmation admin.
     await setDoc(doc(dbc(), "payments", pid), {
       courierId: me.id,
       amount: totalUnpaid,
       receipt,
-      status: receiptImage ? "pending" : "confirmed",
+      status: "pending",
       createdAt: serverTimestamp(),
-      confirmedAt: receiptImage ? null : serverTimestamp(),
+      confirmedAt: null,
     });
-    if (receiptImage) {
-      // Capture envoyée : le compte reste bloqué jusqu'à la confirmation admin.
-      await updateDoc(doc(dbc(), "users", me.id), { blocked: true, blockedReason: "Paiement envoyé — en attente de vérification par l'admin" });
-      return buildDues(me.id);
-    }
-    await Promise.all(
-      docs.filter((d) => !d.paid).map((d) =>
-        updateDoc(doc(dbc(), "courier_dues", d.id as string), { paid: true, paidAt: serverTimestamp() })
-      )
-    );
-    await updateDoc(doc(dbc(), "users", me.id), { blocked: false, blockedReason: null });
+    await updateDoc(doc(dbc(), "users", me.id), { blocked: true, blockedReason: "Paiement envoyé — en attente de vérification par l'admin" });
     return buildDues(me.id);
   },
 

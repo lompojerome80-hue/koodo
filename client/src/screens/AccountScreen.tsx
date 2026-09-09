@@ -372,7 +372,7 @@ export default function AccountScreen() {
                   <>
                     <label style={{ display: "block", fontSize: 12, margin: "0 0 8px", cursor: "pointer" }}>
                       <span style={{ textDecoration: "underline", color: "var(--ink)" }}>
-                        {settleReceipt ? "Changer la capture" : "Joindre la capture du paiement (optionnel)"}
+                        {settleReceipt ? "Changer la capture" : "Joindre la capture du paiement (obligatoire)"}
                       </span>
                       <input
                         ref={receiptRef}
@@ -400,12 +400,13 @@ export default function AccountScreen() {
                     )}
                     <button
                       className="btn btn-primary btn-sm"
-                      style={{ width: "100%", opacity: busySettle ? .7 : 1 }}
-                      disabled={busySettle}
+                      style={{ width: "100%", opacity: busySettle || !settleReceipt ? .7 : 1 }}
+                      disabled={busySettle || !settleReceipt}
                       onClick={async () => {
+                        if (!settleReceipt) return showToast("Capture d'écran obligatoire — joins la preuve de ton règlement");
                         setBusySettle(true);
                         try {
-                          const d = await data.settleDues(settleReceipt || undefined);
+                          const d = await data.settleDues(settleReceipt);
                           setCourierDues(d);
                           showToast(
                             d.pendingPayment
@@ -419,7 +420,7 @@ export default function AccountScreen() {
                         }
                       }}
                     >
-                      {busySettle ? "Envoi…" : `Régler mon dû (${courierDues.totalUnpaid.toLocaleString("fr-FR")} F)`}
+                      {busySettle ? "Envoi…" : !settleReceipt ? "Joins la capture puis règle" : `Régler mon dû (${courierDues.totalUnpaid.toLocaleString("fr-FR")} F)`}
                     </button>
                   </>
                 )}

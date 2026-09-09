@@ -190,6 +190,27 @@ export interface AssignOrderInput {
   sellerLabel?: string;
 }
 
+/** Achat d'un acheteur, groupé par panier (client_ref), avec suivi de course. */
+export interface BuyerOrder {
+  txId: string;
+  createdAt: string;
+  status: "escrow" | "delivered";
+  disputed: boolean;
+  amount: number;
+  qty: number;
+  items: SellerOrderItem[];
+  sellerName: string;
+  sellerPhone: string;
+  provider: string;
+  reference: string | null;
+  delivery: { label: string | null; lat: number | null; lng: number | null; note: string | null } | null;
+  /** Course liée quand l'achat a été confié à un livreur. */
+  deliveryMove: { id: string; status: string; courierName: string | null } | null;
+  /** Vrai si la course est terminée (ou qu'aucune course n'existe) et que les
+   *  fonds sont toujours bloqués → l'acheteur peut les libérer au vendeur. */
+  releaseable: boolean;
+}
+
 export const TRANSPORTS: { label: string; emoji: string }[] = [
   { label: "moto", emoji: "🏍️" },
   { label: "vélo", emoji: "🚲" },

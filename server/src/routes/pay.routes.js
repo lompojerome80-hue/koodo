@@ -152,13 +152,28 @@ router.post("/register", authRequired, (req, res) => {
 });
 
 // L'acheteur confirme la réception → les fonds sont libérés au vendeur.
+// Tant qu'un livreur est en course (récupérée ou en route), la libération reste
+// bloquée : l'acheteur débloque la somme dès que le colis est remis.
 router.post("/confirm", authRequired, (req, res) => {
   const { txId } = req.body || {};
   if (!txId) return res.status(400).json({ error: "txId requis" });
   const rows = db.prepare("SELECT * FROM transactions WHERE client_ref=?").all(txId);
   if (!rows.length) return res.status(404).json({ error: "Achat introuvable" });
   if (rows.some((r) => r.buyer_id !== req.user.sub)) return res.status(403).json({ error: "Seul l'acheteur peut confirmer la réception" });
+  const active = db.prepare(
+    "SELECT status FROM deliveries WHERE tx_ref = ? AND status IN ('open','accepted','picked_up') LIMIT 1"
+  ).get(txId);
+  if (active) {
+    return res.status(409).json({ error: "La commande est en cours de livraison — les fonds seront libérés à la remise du colis" });
+  }
   db.prepare("UPDATE transactions SET order_status='delivered', disputed=0, confirmed_at=datetime('now') WHERE client_ref=?").run(txId);
+  // Temps réel : le(s) vendeur(s) voient la commande passer dans « Validées ».
+  const sellers = new Set();
+  for (const r of rows) {
+    const o = db.prepare("SELECT user_id FROM offers WHERE id=?").get(r.offer_id);
+    if (o?.user_id && o.user_id !== req.user.sub) sellers.add(o.user_id);
+  }
+  for (const sid of sellers) pushTo(sid, { type: "order", offerId: rows[0].offer_id });
   res.json({ ok: true, orderStatus: "delivered" });
 });
 
@@ -253,6 +268,94 @@ router.get("/orders", authRequired, (req, res) => {
       buyerPhone: g.buyerPhone, delivery: g.delivery, deliveryMove };
   });
   res.json({ orders: out });
+});
+
+// Vue acheteur : ses achats (fonds en attente ou libérés), groupés par panier
+// (client_ref), avec le vendeur, la position de livraison et le suivi de la
+// course. releaseable = la course est terminée (ou aucune course) et les fonds
+// sont encore en escrow → l'acheteur peut alors les libérer au vendeur.
+router.get("/purchases", authRequired, (req, res) => {
+  const rows = db.prepare(
+    `SELECT t.client_ref txId, t.offer_id, t.amount, t.qty_kg, t.order_status, t.disputed,
+            t.provider, t.reference, t.created_at,
+            t.location_lat lat, t.location_lng lng,
+            t.delivery_label dlabel, t.delivery_note dnote,
+            o.crop_id, c.name crop_name, c.emoji crop_emoji,
+            s.full_name seller_name, s.phone seller_phone,
+            (SELECT d2.id FROM deliveries d2 WHERE d2.tx_ref = t.client_ref
+               AND d2.status != 'cancelled' ORDER BY d2.created_at DESC LIMIT 1) delivery_id
+     FROM transactions t
+     JOIN offers o ON o.id = t.offer_id
+     JOIN crops c ON c.id = o.crop_id
+     JOIN users s ON s.id = o.user_id
+     WHERE t.buyer_id = ? AND t.status = 'paid'
+     ORDER BY t.created_at DESC`
+  ).all(req.user.sub);
+
+  const orders = new Map();
+  for (const r of rows) {
+    let g = orders.get(r.txId);
+    if (!g) {
+      g = {
+        txId: r.txId,
+        createdAt: r.created_at,
+        status: r.order_status,
+        disputed: r.disputed === 1,
+        amount: 0,
+        qty: 0,
+        items: [],
+        sellerName: r.seller_name,
+        sellerPhone: r.seller_phone,
+        provider: r.provider,
+        reference: r.reference,
+        delivery: null,
+        deliveryId: r.delivery_id || null,
+      };
+      orders.set(r.txId, g);
+    }
+    g.amount += Number(r.amount) || 0;
+    g.qty += Number(r.qty_kg) || 0;
+    g.delivery = {
+      label: r.dlabel || null,
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
+      note: r.dnote || null,
+    };
+    g.items.push({
+      offerId: r.offer_id,
+      cropName: `${r.crop_emoji || ""} ${r.crop_name}`.trim(),
+      qtyKg: Number(r.qty_kg) || 0,
+      amount: Number(r.amount) || 0,
+    });
+  }
+
+  const moveCache = new Map();
+  const out = [...orders.values()].map((g) => {
+    let deliveryMove = null;
+    if (g.deliveryId) {
+      if (!moveCache.has(g.deliveryId)) {
+        moveCache.set(
+          g.deliveryId,
+          db.prepare(
+            `SELECT d.id, d.status, u.full_name courier_name
+             FROM deliveries d LEFT JOIN users u ON u.id = d.courier_id
+             WHERE d.id = ?`
+          ).get(g.deliveryId)
+        );
+      }
+      const dm = moveCache.get(g.deliveryId);
+      deliveryMove = dm ? { id: dm.id, status: dm.status, courierName: dm.courier_name || null } : null;
+    }
+    const escrow = g.status === "escrow" && !g.disputed;
+    const courseFinished = !deliveryMove || deliveryMove.status === "done" || deliveryMove.status === "cancelled";
+    return {
+      txId: g.txId, createdAt: g.createdAt, status: g.status, disputed: g.disputed,
+      amount: g.amount, qty: g.qty, items: g.items, sellerName: g.sellerName,
+      sellerPhone: g.sellerPhone, provider: g.provider, reference: g.reference,
+      delivery: g.delivery, deliveryMove, releaseable: escrow && courseFinished,
+    };
+  });
+  res.json({ purchases: out });
 });
 
 // Vue vendeur : fonds en attente (escrow), libérés et litiges.

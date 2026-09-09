@@ -80,6 +80,9 @@ export default function AdminScreen() {
                 {p.phone} · {p.created_at || ""}
               </p>
               <p style={{ margin: "6px 0" }}><b>{fmtF(p.amount)} F</b></p>
+              <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--muted)" }}>
+                En confirmant, le dû de {p.full_name || "ce livreur"} repasse à zéro et son compte est débloqué.
+              </p>
               {p.receipt && (
                 <div style={{ margin: "0 0 8px" }}>
                   <img src={p.receipt} alt="capture du paiement" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 10, background: "#f5f1e8" }} />
