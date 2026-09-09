@@ -30,10 +30,10 @@ router.post("/sync", authRequired, (req, res) => {
   );
   let count = 0;
   for (const o of offers) {
-    insert.run(o.id || nanoid(), req.user.sub, o.cropId, Number(o.quantity), Number(o.unitPrice), "open",
+    const info = insert.run(o.id || nanoid(), req.user.sub, o.cropId, Number(o.quantity), Number(o.unitPrice), "open",
       Number(o.lat) || null, Number(o.lng) || null, typeof o.image === "string" && o.image ? o.image : null,
       o.createdAt || new Date().toISOString());
-    count++;
+    if (info.changes) count++;
   }
   res.json({ synced: count });
 });

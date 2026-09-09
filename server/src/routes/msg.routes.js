@@ -4,12 +4,15 @@ import db from "../db.js";
 import { authRequired } from "../auth.js";
 import { notifyUser } from "../notify.js";
 import { pushTo, counterpartOf } from "../realtime.js";
+import { saveAudio } from "../uploads.js";
 
 const router = Router();
 
 router.get("/threads", authRequired, (req, res) => {
   const rows = db.prepare(
-    `SELECT m.id, m.offer_id, m.body, m.sender_id, m.created_at,
+    `SELECT m.id, m.offer_id,
+            CASE WHEN m.kind='voice' THEN '🎤 Message vocal' ELSE m.body END AS body,
+            m.kind, m.audio_url, m.duration_ms, m.sender_id, m.created_at,
             o.crop_id, c.name crop_name, c.emoji, o.quantity, o.unit_price,
             other.full_name other_name, other.role other_role,
             (SELECT COUNT(*) FROM messages sub
@@ -39,17 +42,29 @@ router.get("/:offerId", authRequired, (req, res) => {
 });
 
 router.post("/:offerId", authRequired, (req, res) => {
-  const { body } = req.body || {};
-  if (!body || !body.trim()) return res.status(400).json({ error: "message vide" });
+  const { body, audio, duration } = req.body || {};
+  const isVoice = typeof audio === "string" && audio.length > 0;
+  if (!isVoice && (!body || !body.trim())) return res.status(400).json({ error: "message vide" });
   const offer = db.prepare("SELECT * FROM offers WHERE id=?").get(req.params.offerId);
   if (!offer) return res.status(404).json({ error: "annonce introuvable" });
 
   const recipientId = counterpartOf(db, offer, req.user.sub);
 
+  let audioUrl = null;
+  let durationMs = null;
+  if (isVoice) {
+    try {
+      audioUrl = saveAudio(audio);
+      durationMs = Math.max(0, Math.round(Number(duration) || 0));
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
   db.transaction(() => {
     db.prepare(
-      `INSERT INTO messages (id, offer_id, sender_id, body) VALUES (?,?,?,?)`
-    ).run(nanoid(), req.params.offerId, req.user.sub, body.trim());
+      `INSERT INTO messages (id, offer_id, sender_id, body, kind, audio_url, duration_ms) VALUES (?,?,?,?,?,?,?)`
+    ).run(nanoid(), req.params.offerId, req.user.sub, isVoice ? "" : body.trim(), isVoice ? "voice" : "text", audioUrl, durationMs);
 
     if (recipientId && recipientId !== req.user.sub) {
       const sender = db.prepare("SELECT full_name, avatar FROM users WHERE id=?").get(req.user.sub);
@@ -58,7 +73,7 @@ router.post("/:offerId", authRequired, (req, res) => {
       ).get(req.params.offerId);
       const crop = offerInfo ? `${offerInfo.emoji} ${offerInfo.crop_name}` : "l'annonce";
       const name = sender?.full_name || "Quelqu'un";
-      const preview = body.trim().length > 80 ? body.trim().slice(0, 80) + "…" : body.trim();
+      const preview = isVoice ? "🎤 te laisse un message vocal" : (body.trim().length > 80 ? body.trim().slice(0, 80) + "…" : body.trim());
       notifyUser(recipientId, {
         kind: "message",
         title: `Nouveau message · ${crop}`,

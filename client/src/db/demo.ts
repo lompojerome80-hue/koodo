@@ -368,8 +368,9 @@ export const demoBackend: DataBackend = {
     return await api.get<any[]>(`/messages/${offerId}`);
   },
 
-  async sendMessage(offerId: string, body: string) {
-    await api.post(`/messages/${offerId}`, { body });
+  async sendMessage(offerId: string, body: string, voice?: { audio: string; duration: number }) {
+    if (voice) await api.post(`/messages/${offerId}`, { audio: voice.audio, duration: voice.duration });
+    else await api.post(`/messages/${offerId}`, { body });
   },
 
   async markMessagesRead(offerId: string) {

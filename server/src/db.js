@@ -303,6 +303,19 @@ try {
   /* colonne déjà présente */
 }
 
+// Migration : messages vocaux (kind, audio_url, duration_ms).
+for (const col of [
+  ["kind", "TEXT NOT NULL DEFAULT 'text'"],
+  ["audio_url", "TEXT"],
+  ["duration_ms", "INTEGER"],
+]) {
+  try {
+    db.exec(`ALTER TABLE messages ADD COLUMN ${col[0]} ${col[1]}`);
+  } catch {
+    /* colonne déjà présente */
+  }
+}
+
 // Migration : rôle livreur + blocage du compte (bases créées avant)
 // SQLite ne permet pas d'élargir un CHECK en place → on reconstruit la table.
 // NB : legacy_alter_table=ON empêche RENAME de réécrire les FK vers users_old.

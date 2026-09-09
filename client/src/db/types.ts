@@ -61,6 +61,12 @@ export interface Msg {
   created_at: string;
   /** 1 = lu par le destinataire (accusé de lecture). */
   seen?: number;
+  /** "voice" pour un message vocal (sinon texte). */
+  kind?: "text" | "voice";
+  /** URL publique du fichier audio si message vocal. */
+  audio_url?: string | null;
+  /** Durée du vocal en millisecondes. */
+  duration_ms?: number | null;
 }
 
 export interface DeliveryInfo {
@@ -184,7 +190,7 @@ export interface DataBackend {
 
   listThreads(): Promise<Thread[]>;
   getMessages(offerId: string): Promise<Msg[]>;
-  sendMessage(offerId: string, body: string): Promise<void>;
+  sendMessage(offerId: string, body: string, voice?: { audio: string; duration: number }): Promise<void>;
   deleteMessage(offerId: string, messageId: string): Promise<void>;
   /** Marque la conversation comme lue (accusés + cloche). */
   markMessagesRead(offerId: string): Promise<void>;

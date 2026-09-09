@@ -4,6 +4,16 @@ const BASE = API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
 // Base API normalisée (sans slash final), réutilisée par le canal temps réel.
 export const API_BASE_URL = BASE;
 
+// Origine du serveur déduite de la base API : indispensable pour résoudre les
+// URLs relatives (/uploads/...) dans l'APK Capacitor, dont le webview n'est pas
+// sur le même hôte.
+const ORIGIN = BASE.replace(/\/api$/i, "");
+export function mediaUrl(url?: string | null): string {
+  if (!url) return "";
+  if (/^https?:/i.test(url)) return url;
+  return ORIGIN + url;
+}
+
 let token: string | null = localStorage.getItem("koodo_token");
 
 export function setToken(t: string | null) {

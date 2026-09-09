@@ -602,15 +602,18 @@ lat: input.lat ?? null,
       const x = d.data();
       return {
         id: d.id,
-        body: x.body,
+body: x.body,
         sender_id: x.senderId,
         sender_name: x.senderName,
         created_at: x.createdAt?.toDate ? x.createdAt.toDate().toISOString() : "",
+        kind: x.kind as "text" | "voice" | undefined,
+        audio_url: (x.audioUrl as string | null | undefined) ?? null,
+        duration_ms: x.durationMs ? Number(x.durationMs) : null,
       };
     });
   },
 
-async sendMessage(offerId: string, body: string) {
+async sendMessage(offerId: string, body: string, voice?: { audio: string; duration: number }) {
     const me = await refreshSelf();
     if (!me) return;
     const offSnap = await getDoc(doc(dbc(), "offers", offerId));
@@ -637,12 +640,15 @@ async sendMessage(offerId: string, body: string) {
       recipientId,
       recipientName,
       recipientRole,
-      body,
+body,
       cropName: off?.cropName || "",
       emoji: off?.emoji || "",
       quantity: off?.quantity || 0,
       unitPrice: off?.unitPrice || 0,
-createdAt: serverTimestamp(),
+      kind: voice ? "voice" : "text",
+      audioUrl: voice ? voice.audio : null,
+      durationMs: voice ? voice.duration : null,
+      createdAt: serverTimestamp(),
     });
   },
 
