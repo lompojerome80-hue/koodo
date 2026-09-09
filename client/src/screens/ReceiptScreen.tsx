@@ -4,6 +4,7 @@ import { useApp } from "../store";
 import { data } from "../data";
 import { getProvider } from "../payments/providers";
 import { useToast } from "../hooks/useToast";
+import QrCode from "../components/QrCode";
 import type { Tx } from "../db/types";
 import type { CourseDelivery, BuyerOrder } from "../types";
 
@@ -132,12 +133,20 @@ export default function ReceiptScreen() {
             )}
 
             {myCourse && myCourse.delivery_code && (
-              <div className="code-chip" style={{ marginTop: 8, textAlign: "left" }}>
-                <div style={{ textAlign: "left" }}>
-                  <small>📦 Un livreur achemine ta commande</small>
-                  <b style={{ display: "block", color: "var(--ink)", fontSize: 11, marginTop: 2 }}>À la remise, donne-lui ton code :</b>
+              <div style={{ marginTop: 8, textAlign: "left" }}>
+                <div className="code-chip">
+                  <div style={{ textAlign: "left" }}>
+                    <small>📦 Un livreur achemine ta commande</small>
+                    <b style={{ display: "block", color: "var(--ink)", fontSize: 11, marginTop: 2 }}>À la remise, donne-lui ton code :</b>
+                  </div>
+                  <b className="font-mono" style={{ fontSize: 16 }}>{myCourse.delivery_code}</b>
                 </div>
-                <b className="font-mono" style={{ fontSize: 16 }}>{myCourse.delivery_code}</b>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                  <QrCode value={myCourse.delivery_code} size={110} />
+                  <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
+                    Le livreur peut scanner ce QR code à la remise au lieu de te demander le code à l'oral.
+                  </p>
+                </div>
               </div>
             )}
 

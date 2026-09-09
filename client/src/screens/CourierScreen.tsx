@@ -4,6 +4,8 @@ import { useToast } from "../hooks/useToast";
 import { requestLocation } from "../geo";
 import { data } from "../data";
 import { pickPhoto } from "../components/CourierDossierFields";
+import QrScanner from "../components/QrScanner";
+import QrCode from "../components/QrCode";
 import { refreshNotifications } from "../notif";
 import { onLive } from "../realtime";
 import type { CourseDelivery, CourierDues, User } from "../types";
@@ -170,6 +172,7 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
   const showToast = useToast((s) => s.show);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scan, setScan] = useState<"pickup" | "delivery" | null>(null);
 
   useEffect(() => { setCode(""); }, [d.status]);
 
@@ -184,6 +187,23 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
       showToast(err.message || "Erreur");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function onScanned(txt: string) {
+    const kind = scan;
+    setScan(null);
+    const code6 = (txt || "").replace(/\D/g, "").slice(0, 6);
+    if (code6.length < 6) {
+      showToast("Code illisible — saisis-le à la main");
+      setCode(code6);
+      return;
+    }
+    setCode(code6);
+    if (kind === "delivery") {
+      void run(() => data.completeDelivery(d.id, code6), `Course livrée ✓ — tu touches ${formatF(d.price_fee)} F (Koodo prélève 10 % de commission)`);
+    } else {
+      void run(() => data.pickupDelivery(d.id, code6), "Colis récupéré ✓");
     }
   }
 
@@ -222,8 +242,11 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
             À la livraison, Koodo prélève sa commission de 10 % (ajoutée à ton dû du jour).
           </p>
           <input className="pin-input" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Code vendeur" inputMode="numeric" />
-          <button className="btn btn-green" style={{ marginTop: 8 }} disabled={busy || code.length < 6} onClick={() => run(() => data.pickupDelivery(d.id, code), "Colis récupéré ✓")}>
+          <button className="btn btn-green" style={{ marginTop: 8, width: "100%" }} disabled={busy || code.length < 6} onClick={() => run(() => data.pickupDelivery(d.id, code), "Colis récupéré ✓")}>
             {busy ? "…" : "Confirmer la récupération"}
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 6, width: "100%" }} onClick={() => setScan("pickup")}>
+            📷 Scanner le QR du vendeur
           </button>
         </div>
       )}
@@ -235,8 +258,11 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
           </p>
           <CodeChip label="Remise le colis → tu touches" code={`${formatF(d.price_fee)} F`} />
           <input className="pin-input" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Code acheteur" inputMode="numeric" />
-          <button className="btn btn-primary" style={{ marginTop: 8 }} disabled={busy || code.length < 6} onClick={() => run(() => data.completeDelivery(d.id, code), `Course livrée ✓ — tu touches ${formatF(d.price_fee)} F (Koodo prélève 10 % de commission)`)}>
+          <button className="btn btn-primary" style={{ marginTop: 8, width: "100%" }} disabled={busy || code.length < 6} onClick={() => run(() => data.completeDelivery(d.id, code), `Course livrée ✓ — tu touches ${formatF(d.price_fee)} F (Koodo prélève 10 % de commission)`)}>
             {busy ? "…" : "Confirmer la livraison"}
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 6, width: "100%" }} onClick={() => setScan("delivery")}>
+            📷 Scanner le QR du client
           </button>
           <p style={{ fontSize: 11, color: "var(--muted2)", margin: "6px 0 0" }}>
             La commission de {formatF(Math.round(d.price_fee * 0.1))} F (10 %) est prélevée par Koodo et ajoutée à ton dû du jour.
@@ -259,6 +285,8 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
         <StatusPill status={d.status} />
         {d.courier_name && <small style={{ color: "var(--muted2)" }}>🛵 {d.courier_name}</small>}
       </div>
+
+      {scan && <QrScanner onResult={onScanned} onClose={() => setScan(null)} />}
     </div>
   );
 }
@@ -281,10 +309,22 @@ function SellerCard({ d, onChanged }: { d: CourseDelivery; onChanged: () => void
       </div>
 
       {(d.status === "open" || d.status === "accepted") && (
-        <CodeChip label="Code à donner au livreur (récupération)" code={d.pickup_code} />
+        <div>
+          <CodeChip label="Code à donner au livreur (récupération)" code={d.pickup_code} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <QrCode value={d.pickup_code || ""} size={88} />
+            <small style={{ color: "var(--muted)" }}>Le livreur peut scanner ce QR à la récupération.</small>
+          </div>
+        </div>
       )}
       {(d.status === "accepted" || d.status === "picked_up") && (
-        <CodeChip label="Code à communiquer à l'acheteur (livraison)" code={d.delivery_code} />
+        <div>
+          <CodeChip label="Code à communiquer à l'acheteur (livraison)" code={d.delivery_code} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <QrCode value={d.delivery_code || ""} size={88} />
+            <small style={{ color: "var(--muted)" }}>Montre ce QR à l'acheteur pour la remise du colis.</small>
+          </div>
+        </div>
       )}
 
       {(d.status === "accepted" || d.status === "picked_up" || d.status === "done") && (

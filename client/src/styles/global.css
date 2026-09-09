@@ -575,6 +575,11 @@ main.screen { flex: 1; padding: 18px 18px 28px; overflow-y: auto; }
 }
 .code-chip small { font-size: 10px; color: var(--muted); }
 .code-chip b { font-size: 15px; color: var(--green-2); letter-spacing: 2px; }
+/* Scanner QR (livreur) */
+.qr-overlay { position: fixed; inset: 0; background: rgba(10,20,16,.78); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 18px; }
+.qr-modal { background: var(--paper); border-radius: 16px; padding: 16px; width: 100%; max-width: 360px; }
+.qr-modal video { border-radius: 12px; }
+.qr-modal #koodo-qr-reader { width: 100%; overflow: hidden; border-radius: 12px; background: #000; }
 .due-banner { border-color: rgba(232,135,30,.4); background: rgba(232,135,30,.06); }
 .blocked-banner { border-color: rgba(184,71,30,.55); background: rgba(184,71,30,.07); }
 
