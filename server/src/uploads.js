@@ -25,7 +25,7 @@ const AUDIO_TYPES = {
 const MAX_AUDIO_BYTES = 4.5 * 1024 * 1024; // ~4,5 Mo par vocal (~2 min en opus)
 
 function writeBase64(dataUrl, kind, types, maxBytes) {
-  const m = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+  const m = String(dataUrl || "").match(/^data:([^;,]+)(?:;[^,]*)?;base64,(.+)$/);
   if (!m) throw new Error("Fichier invalide");
   const ext = types[m[1]];
   if (!ext) throw new Error("Format non supporté pour ce type de fichier");
