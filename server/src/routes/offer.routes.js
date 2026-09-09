@@ -63,6 +63,17 @@ router.get("/", authRequired, (req, res) => {
 
 // Un acheteur acquiert qtyKg d'une annonce : stock décrémenté,
 // annonce clôturée si stock épuisé.
+export function consumeOfferStock(offerId, qtyKg) {
+  const qty = Number(qtyKg);
+  if (!offerId || !Number.isFinite(qty) || qty <= 0) return { remaining: null, status: null };
+  const offer = db.prepare("SELECT * FROM offers WHERE id=? AND status='open'").get(offerId);
+  if (!offer) return { remaining: null, status: null };
+  const remaining = Math.max(0, offer.quantity - qty);
+  const status = remaining <= 0 ? "sold" : "open";
+  db.prepare("UPDATE offers SET quantity=?, status=?, updated_at=datetime('now') WHERE id=?").run(remaining, status, offerId);
+  return { remaining, status };
+}
+
 router.post("/consume", authRequired, (req, res) => {
   const { offerId, qtyKg } = req.body || {};
   const qty = Number(qtyKg);
@@ -73,9 +84,7 @@ router.post("/consume", authRequired, (req, res) => {
   if (!offer) return res.status(404).json({ error: "Annonce introuvable ou déjà clôturée" });
   if (offer.user_id === req.user.sub) return res.status(403).json({ error: "Impossible d'acheter sa propre annonce" });
   if (qty > offer.quantity) return res.status(400).json({ error: `Quantité disponible : ${offer.quantity} kg` });
-  const remaining = Math.max(0, offer.quantity - qty);
-  const status = remaining <= 0 ? "sold" : "open";
-  db.prepare("UPDATE offers SET quantity=?, status=?, updated_at=datetime('now') WHERE id=?").run(remaining, status, offerId);
+  const { remaining, status } = consumeOfferStock(offerId, qty);
   res.json({ ok: true, remaining, status });
 });
 

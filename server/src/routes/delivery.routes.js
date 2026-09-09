@@ -325,7 +325,7 @@ router.post("/:id/accept", authRequired, (req, res) => {
       notifyUser(buyerId, {
         kind: "delivery_accepted",
         title: "Ta course a un livreur",
-        body: `${courier.full_name} apporte « ${d.title} ». C'est cette personne qui te remettra ton colis.`,
+        body: `${courier.full_name} apporte « ${d.title} ». Ton code de livraison : ${d.delivery_code}. Montre-le (ou le QR) au livreur à la remise.`,
         actor_name: courier.full_name,
         actor_photo: courier.photo,
         delivery_id: d.id,
@@ -554,7 +554,7 @@ router.post("/assign", authRequired, (req, res) => {
       notifyUser(rows[0].buyer_id, {
         kind: "delivery_found",
         title: "Un livreur prend ta commande",
-        body: `${courier.full_name} apporte « ${title} » — il récupère le colis chez le vendeur puis te le remet.`,
+        body: `${courier.full_name} apporte « ${title} ». Ton code de livraison : ${deliveryCode}. Montre-le (ou le QR) au livreur à la remise.`,
         actor_name: courier.full_name,
         delivery_id: id,
       });

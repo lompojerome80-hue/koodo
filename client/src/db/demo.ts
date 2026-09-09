@@ -8,11 +8,6 @@ import type { DataBackend, NewOffer, RegisterInput, StartPaymentInput, CheckoutI
 import type { Crop, Offer, PriceRow, TrendRow, User, Alert, CourseDelivery, CourierDues, CreateDeliveryInput, CourierDossier, AppNotification, AdminCourier, AdminPayment, SellerOrder, NearbyCourier, AssignOrderInput } from "../types";
 import { nanoid } from "nanoid";
 
-// Décrémente le stock serveur après un achat (mode démo / Express).
-async function consumeOffer(offerId: string, qtyKg: number) {
-  await api.post("/offers/consume", { offerId, qtyKg });
-}
-
 // Persiste l'achat côté serveur sous statut "escrow" (fonds mis en attente
 // jusqu'à confirmation de la livraison par l'acheteur). Meilleur effort.
 async function recordEscrow(
@@ -417,8 +412,6 @@ export const demoBackend: DataBackend = {
     await new Promise<void>((resolve) => setTimeout(resolve, 1400));
     await offline.savePurchase(tx);
     recordEscrow(tx.id, [{ offerId: input.offerId, qtyKg: input.qtyKg || 1, amount: input.amount }], total, input.providerId, tx.ref, input.buyerPhone, tx.delivery).catch(() => {});
-    // Décrémente le stock serveur (meilleur effort — silencieux hors ligne).
-    if (input.qtyKg) consumeOffer(input.offerId, input.qtyKg).catch(() => {});
     return tx;
   },
 
@@ -445,7 +438,6 @@ export const demoBackend: DataBackend = {
     await new Promise<void>((resolve) => setTimeout(resolve, 1400));
     await offline.savePurchase(tx);
     recordEscrow(tx.id, input.items, tx.total, input.providerId, tx.ref, input.buyerPhone, tx.delivery).catch(() => {});
-    for (const it of input.items) consumeOffer(it.offerId, it.qtyKg).catch(() => {});
     return tx;
   },
 

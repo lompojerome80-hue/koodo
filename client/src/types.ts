@@ -204,8 +204,9 @@ export interface BuyerOrder {
   provider: string;
   reference: string | null;
   delivery: { label: string | null; lat: number | null; lng: number | null; note: string | null } | null;
-  /** Course liée quand l'achat a été confié à un livreur. */
-  deliveryMove: { id: string; status: string; courierName: string | null } | null;
+  /** Course liée quand l'achat a été confié à un livreur. deliveryCode = le
+   *  code que l'acheteur doit donner (ou faire scanner) au livreur à la remise. */
+  deliveryMove: { id: string; status: string; courierName: string | null; deliveryCode?: string | null } | null;
   /** Vrai si la course est terminée (ou qu'aucune course n'existe) et que les
    *  fonds sont toujours bloqués → l'acheteur peut les libérer au vendeur. */
   releaseable: boolean;

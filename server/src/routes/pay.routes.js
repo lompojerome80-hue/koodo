@@ -5,6 +5,7 @@ import { authRequired } from "../auth.js";
 import { chargePayment, feeFor, verifyWebhookSignature } from "../payments/service.js";
 import { notifyUser } from "../notify.js";
 import { pushTo } from "../realtime.js";
+import { consumeOfferStock } from "./offer.routes.js";
 
 const router = Router();
 
@@ -107,8 +108,26 @@ router.post("/webhook", (req, res) => {
   if (!verifyWebhookSignature(req.headers, body)) {
     return res.status(200).json({ ok: true, note: "signature non vérifiée — transaction non activée" });
   }
-  if (body.transaction_id) {
-    db.prepare("UPDATE transactions SET status='paid' WHERE reference=? OR id=?").run(body.transaction_id, body.transaction_id);
+  const ref = body.transaction_id;
+  if (ref) {
+    // On ne décrémente que les lignes qui passent enfin en "paid" (lignes
+    // d'initiation /charge, qui n'ont pas de client_ref). La commande déjà
+    // enregistrée via /payments/register (client_ref) a déjà décompté le
+    // stock : on évite ainsi le double décrément du même panier.
+    const res2 = db
+      .prepare("UPDATE transactions SET status='paid' WHERE (reference=? OR id=?) AND status!='paid'")
+      .run(ref, ref);
+    if (res2.changes > 0) {
+      const registered = db
+        .prepare("SELECT COUNT(*) c FROM transactions WHERE reference=? AND client_ref IS NOT NULL AND status='paid'")
+        .get(ref).c;
+      if (!registered) {
+        const rows = db
+          .prepare("SELECT offer_id, qty_kg FROM transactions WHERE (reference=? OR id=?) AND status='paid' AND client_ref IS NULL")
+          .all(ref, ref);
+        for (const r of rows) consumeOfferStock(r.offer_id, Number(r.qty_kg) || null);
+      }
+    }
   }
   res.json({ ok: true });
 });
@@ -120,7 +139,11 @@ router.post("/register", authRequired, (req, res) => {
   if (!txId || !Array.isArray(items) || !items.length) {
     return res.status(400).json({ error: "txId et items requis" });
   }
-  // Idempotence : ré-écriture du même reçu client.
+  // Idempotence : ré-écriture du même reçu client. On ne décrémente le stock
+  // que pour une PREMIÈRE écriture (une nouvelle commande) — une ré-écriture
+  // (réseau lent, double envoi) ne re-décompte pas.
+  const hadExisting =
+    db.prepare("SELECT COUNT(*) c FROM transactions WHERE client_ref=? AND status='paid'").get(txId).c > 0;
   db.prepare("DELETE FROM transactions WHERE client_ref=?").run(txId);
   const insert = db.prepare(
     `INSERT INTO transactions (id, offer_id, buyer_id, amount, fee, provider, status, reference, client_ref, qty_kg, location_lat, location_lng, delivery_note, order_status, delivery_label)
@@ -147,6 +170,18 @@ router.post("/register", authRequired, (req, res) => {
     if (sellerLines.length) notifySellers(sellerLines, req, delivery);
   } catch {
     /* la commande reste tracée même si la notification échoue */
+  }
+  // Stock : une première écriture fait baisser la quantité de chaque annonce ;
+  // dès 0 kg, l'annonce passe "sold" et disparaît du marché automatiquement.
+  if (!hadExisting) {
+    for (const it of items) {
+      try {
+        const offer = db.prepare("SELECT quantity FROM offers WHERE id=?").get(it.offerId);
+        if (offer) consumeOfferStock(it.offerId, Number(it.qtyKg) || offer.quantity);
+      } catch {
+        /* meilleur effort */
+      }
+    }
   }
   res.json({ ok: true, orderStatus: "escrow" });
 });
@@ -357,14 +392,14 @@ router.get("/purchases", authRequired, (req, res) => {
         moveCache.set(
           g.deliveryId,
           db.prepare(
-            `SELECT d.id, d.status, u.full_name courier_name
+            `SELECT d.id, d.status, d.delivery_code, u.full_name courier_name
              FROM deliveries d LEFT JOIN users u ON u.id = d.courier_id
              WHERE d.id = ?`
           ).get(g.deliveryId)
         );
       }
       const dm = moveCache.get(g.deliveryId);
-      deliveryMove = dm ? { id: dm.id, status: dm.status, courierName: dm.courier_name || null } : null;
+      deliveryMove = dm ? { id: dm.id, status: dm.status, courierName: dm.courier_name || null, deliveryCode: dm.delivery_code || null } : null;
     }
     const escrow = g.status === "escrow" && !g.disputed;
     const courseFinished = !deliveryMove || deliveryMove.status === "done" || deliveryMove.status === "cancelled";

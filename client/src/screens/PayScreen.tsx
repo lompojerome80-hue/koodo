@@ -82,6 +82,9 @@ export default function PayScreen() {
         qtyKg: qty,
         delivery: delivery ? { ...delivery, note: note.trim() || undefined } : undefined,
       });
+      // Le stock serveur a diminué → on rafraîchit le marché dans l'appli
+      // (l'annonce disparaît du marché dès qu'elle atteint 0 kg).
+      void data.listMarketOffers().then((o2) => useApp.getState().setOffers(o2)).catch(() => {});
       navigate(`/recu/${tx.id}`, { state: { ref: ref || tx.ref } });
     } catch (err: any) {
       showToast(err.message || "Paiement impossible — essaie encore");

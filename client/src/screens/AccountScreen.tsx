@@ -166,6 +166,69 @@ function AssignPanel({ order, onDone, onClose }: { order: SellerOrder; onDone: (
   );
 }
 
+/** Formulaire de règlement du dû livreur : capture d'écran du paiement Mobile
+ *  Money (obligatoire), envoyée à Koodo pour validation par l'admin. */
+function SettleForm({ onSettled }: { onSettled: (d: CourierDues) => void }) {
+  const showToast = useToast((s) => s.show);
+  const [settleReceipt, setSettleReceipt] = useState("");
+  const [busySettle, setBusySettle] = useState(false);
+  const receiptRef = useRef<HTMLInputElement>(null);
+
+  async function submit() {
+    if (!settleReceipt) return showToast("Capture d'écran obligatoire — joins la preuve de ton règlement");
+    setBusySettle(true);
+    try {
+      const d = await data.settleDues(settleReceipt);
+      onSettled(d);
+      showToast(d.pendingPayment ? "Paiement envoyé — en attente de vérification admin ✓" : "Dû réglé — compte débloqué ✓");
+    } catch (err: any) {
+      showToast(err.message || "Règlement impossible");
+    } finally {
+      setBusySettle(false);
+    }
+  }
+
+  return (
+    <>
+      <label style={{ display: "block", fontSize: 12, margin: "4px 0 8px", cursor: "pointer" }}>
+        <span style={{ textDecoration: "underline", color: "var(--ink)" }}>
+          {settleReceipt ? "Changer la capture" : "Joindre la capture du paiement (obligatoire)"}
+        </span>
+        <input
+          ref={receiptRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            try {
+              const { pickPhoto } = await import("../components/CourierDossierFields");
+              setSettleReceipt(await pickPhoto(f, 900));
+            } catch {
+              showToast("Capture impossible — choisis la photo en galerie si la caméra échoue.");
+            }
+          }}
+        />
+      </label>
+      {settleReceipt && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px" }}>
+          <img src={settleReceipt} alt="capture du paiement" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8 }} />
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>Capture jointe — envoyée à Koodo pour validation.</span>
+        </div>
+      )}
+      <button
+        className="btn btn-primary btn-sm"
+        style={{ width: "100%", opacity: busySettle || !settleReceipt ? .7 : 1 }}
+        disabled={busySettle || !settleReceipt}
+        onClick={submit}
+      >
+        {busySettle ? "Envoi…" : !settleReceipt ? "Joins la capture puis règle" : "Envoyer mon règlement"}
+      </button>
+    </>
+  );
+}
+
 export default function AccountScreen() {
   const user = useApp((s) => s.user);
   const crops = useApp((s) => s.crops);
@@ -195,12 +258,10 @@ export default function AccountScreen() {
   const [alertCrop, setAlertCrop] = useState("mais");
   const [alertPrice, setAlertPrice] = useState("");
   const [busyAlert, setBusyAlert] = useState(false);
-  const [busySettle, setBusySettle] = useState(false);
   const [busySwitch, setBusySwitch] = useState(false);
   const [switchTarget, setSwitchTarget] = useState<{ phone: string; label: string } | null>(null);
   const [switchPassword, setSwitchPassword] = useState("");
-  const [settleReceipt, setSettleReceipt] = useState("");
-  const receiptRef = useRef<HTMLInputElement>(null);
+  const [showSettle, setShowSettle] = useState(false);
 
   const isSeller = user?.role === "producer";
   const isCourier = user?.role === "courier";
@@ -389,59 +450,7 @@ export default function AccountScreen() {
                     <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>Ton compte sera débloqué dès la confirmation.</p>
                   </div>
                 ) : (
-                  <>
-                    <label style={{ display: "block", fontSize: 12, margin: "0 0 8px", cursor: "pointer" }}>
-                      <span style={{ textDecoration: "underline", color: "var(--ink)" }}>
-                        {settleReceipt ? "Changer la capture" : "Joindre la capture du paiement (obligatoire)"}
-                      </span>
-                      <input
-                        ref={receiptRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={async (e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          try {
-                            const { pickPhoto } = await import("../components/CourierDossierFields");
-                            setSettleReceipt(await pickPhoto(f, 900));
-                          } catch {
-                            showToast("Capture impossible — choisis la photo en galerie si la caméra échoue.");
-                          }
-                        }}
-                      />
-                    </label>
-                    {settleReceipt && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px" }}>
-                        <img src={settleReceipt} alt="capture du paiement" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8 }} />
-                        <span style={{ fontSize: 11, color: "var(--muted)" }}>Capture jointe — envoyée à Koodo pour validation.</span>
-                      </div>
-                    )}
-                    <button
-                      className="btn btn-primary btn-sm"
-                      style={{ width: "100%", opacity: busySettle || !settleReceipt ? .7 : 1 }}
-                      disabled={busySettle || !settleReceipt}
-                      onClick={async () => {
-                        if (!settleReceipt) return showToast("Capture d'écran obligatoire — joins la preuve de ton règlement");
-                        setBusySettle(true);
-                        try {
-                          const d = await data.settleDues(settleReceipt);
-                          setCourierDues(d);
-                          showToast(
-                            d.pendingPayment
-                              ? "Paiement envoyé — en attente de vérification admin ✓"
-                              : "Dû réglé — compte débloqué ✓"
-                          );
-                        } catch (err: any) {
-                          showToast(err.message || "Règlement impossible");
-                        } finally {
-                          setBusySettle(false);
-                        }
-                      }}
-                    >
-                      {busySettle ? "Envoi…" : !settleReceipt ? "Joins la capture puis règle" : `Régler mon dû (${courierDues.totalUnpaid.toLocaleString("fr-FR")} F)`}
-                    </button>
-                  </>
+                  <SettleForm onSettled={setCourierDues} />
                 )}
               </>
             ) : (
@@ -452,9 +461,23 @@ export default function AccountScreen() {
                     <button className="btn btn-ghost btn-sm">Voir mes courses</button>
                   </Link>
                 </div>
-                <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)" }}>
-                  Règle tes commissions chaque soir avant 00H pour garder ton compte actif.
-                </p>
+                {courierDues.totalUnpaid > 0 && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                    Total non réglé : <b className="font-mono">{courierDues.totalUnpaid.toLocaleString("fr-FR")} F</b> — règle tes commissions chaque soir avant 00H pour garder ton compte actif.
+                  </p>
+                )}
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: 8, width: "100%" }}
+                  onClick={() => setShowSettle((v) => !v)}
+                >
+                  {showSettle ? "Fermer" : `💳 Régler mon dû (${courierDues.totalUnpaid.toLocaleString("fr-FR")} F)`}
+                </button>
+                {showSettle && !courierDues.pendingPayment && (
+                  <div style={{ marginTop: 8 }}>
+                    <SettleForm onSettled={setCourierDues} />
+                  </div>
+                )}
               </>
             )}
           </div>

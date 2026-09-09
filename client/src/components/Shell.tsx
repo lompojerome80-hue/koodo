@@ -112,7 +112,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ]
       : [
           { tab: "/", label: t("nav.prix", L) },
-          { tab: "/vendre", label: t("nav.vendre", L) },
+          { tab: user?.role === "buyer" ? "/achats" : "/vendre", label: user?.role === "buyer" ? t("nav.achats", L) : t("nav.vendre", L) },
           { tab: "/marche", label: t("nav.marche", L) },
           { tab: "/compte", label: t("nav.compte", L) },
         ];
@@ -243,6 +243,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               )}
               {t.tab === "/vendre" && (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+              )}
+              {t.tab === "/achats" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
               )}
               {t.key === "/livraisons" && (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 5h11v11H3zM11 18a2 2 0 104 0 2 2 0 00-4 0zM18 16h1a2 2 0 002-2V9l-4-3-3 1"/><circle cx="17" cy="18" r="2"/></svg>

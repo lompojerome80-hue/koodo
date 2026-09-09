@@ -23,6 +23,26 @@ function formatF(n: number): string {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+/** Lien Google Maps vers une destination (ouvre l'itinéraire jusqu'à la course). */
+function navUrl(lat?: number, lng?: number): string | null {
+  if (lat == null || lng == null) return null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
+function PlaceRow({ label, lat, lng }: { label?: string; lat?: number; lng?: number }) {
+  const url = navUrl(lat, lng);
+  return (
+    <p style={{ fontSize: 11, margin: "4px 0 0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <span style={{ color: "var(--muted)" }}>📍 {label || `${lat}, ${lng}`}</span>
+      {url && (
+        <a href={url} target="_blank" rel="noreferrer" style={{ color: "var(--green-2)", whiteSpace: "nowrap", textDecoration: "underline" }}>
+          Itinéraire →
+        </a>
+      )}
+    </p>
+  );
+}
+
 function StatusPill({ status }: { status: string }) {
   const cls = status === "done" ? "pill open" : status === "accepted" || status === "picked_up" ? "pill pending" : status === "cancelled" ? "pill sold" : "pill pending";
   return <span className={cls} style={{ fontSize: 9 }}>{STATUS_LABEL[status] || status}</span>;
@@ -241,6 +261,7 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
             Récupère le colis chez <b>{d.seller_label || d.seller_name}</b>. Le vendeur te lit son code de récupération.
             À la livraison, Koodo prélève sa commission de 10 % (ajoutée à ton dû du jour).
           </p>
+          <PlaceRow label={d.seller_label || d.seller_name} lat={d.seller_lat} lng={d.seller_lng} />
           <input className="pin-input" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Code vendeur" inputMode="numeric" />
           <button className="btn btn-green" style={{ marginTop: 8, width: "100%" }} disabled={busy || code.length < 6} onClick={() => run(() => data.pickupDelivery(d.id, code), "Colis récupéré ✓")}>
             {busy ? "…" : "Confirmer la récupération"}
@@ -256,6 +277,7 @@ function RunnerCard({ d, onChanged, dossierOk }: { d: CourseDelivery; onChanged:
           <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 8px" }}>
             Livre à <b>{d.buyer_label}</b>. L'acheteur te communique son code de livraison.
           </p>
+          <PlaceRow label={d.buyer_label} lat={d.buyer_lat} lng={d.buyer_lng} />
           <CodeChip label="Remise le colis → tu touches" code={`${formatF(d.price_fee)} F`} />
           <input className="pin-input" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Code acheteur" inputMode="numeric" />
           <button className="btn btn-primary" style={{ marginTop: 8, width: "100%" }} disabled={busy || code.length < 6} onClick={() => run(() => data.completeDelivery(d.id, code), `Course livrée ✓ — tu touches ${formatF(d.price_fee)} F (Koodo prélève 10 % de commission)`)}>

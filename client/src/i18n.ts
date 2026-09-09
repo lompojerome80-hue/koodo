@@ -17,6 +17,7 @@ export const LANG_KEY = "koodo_lang";
 const DICT: Record<string, Partial<Record<Lang, string>>> = {
   "nav.prix": { fr: "Prix", moore: "Raako", dioula: "Sàrì" },
   "nav.vendre": { fr: "Vendre", moore: "Koosgo", dioula: "Fèere" },
+  "nav.achats": { fr: "Mes achats", moore: "M raabo", dioula: "N sànnu" },
   "nav.marche": { fr: "Marché", moore: "Kiuugu", dioula: "Sugu" },
   "nav.compte": { fr: "Compte", moore: "M zugu", dioula: "N ka tɔgɔ" },
   "nav.livraisons": { fr: "Livraisons", moore: "Tʋkri", dioula: "Sàn-ni" },

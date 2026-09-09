@@ -82,6 +82,8 @@ export default function CartScreen() {
         ref,
         delivery: deliveryPayload,
       });
+      // Le stock serveur a diminué → on rafraîchit le marché dans l'appli.
+      void data.listMarketOffers().then((o2) => useApp.getState().setOffers(o2)).catch(() => {});
       clear();
       navigate(`/recu/${tx.id}`, { state: { ref, items: txItems, delivery: deliveryPayload } });
     } catch (err: any) {

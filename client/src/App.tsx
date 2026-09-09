@@ -8,6 +8,7 @@ import { offline } from "./offline";
 import Shell from "./components/Shell";
 import PricesScreen from "./screens/PricesScreen";
 import SellScreen from "./screens/SellScreen";
+import MyPurchasesScreen from "./screens/MyPurchasesScreen";
 import MarketScreen from "./screens/MarketScreen";
 import AccountScreen from "./screens/AccountScreen";
 import ThreadScreen from "./screens/ThreadScreen";
@@ -186,6 +187,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<PricesScreen />} />
               <Route path="/vendre" element={<SellScreen />} />
+              <Route path="/achats" element={<MyPurchasesScreen />} />
               <Route path="/marche" element={<MarketScreen />} />
               <Route path="/compte" element={<AccountScreen />} />
               <Route path="/aide" element={<HelpScreen />} />
