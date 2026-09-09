@@ -1,19 +1,59 @@
 import { useRef, type RefObject } from "react";
 import { TRANSPORTS, type CourierDossier } from "../types";
 
-/** Lit et retailler une photo (JPEG ~0,72, largeur max = max) pour un stockage léger. */
+/** Lit et retailler une photo (JPEG ~0,72, largeur max = max) pour un stockage léger.
+ *  Décodage direct à la taille cible (createImageBitmap) pour éviter le plantage
+ *  par manque de mémoire sur téléphones avec photos de plusieurs Mo. */
 export function pickPhoto(file: File | undefined, max: number): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file) return reject(new Error("Aucun fichier"));
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("Image illisible"));
-      img.onload = () => {
-        const scale = Math.min(1, max / Math.max(img.width, img.height));
-        const w = Math.max(1, Math.round(img.width * scale));
-        const h = Math.max(1, Math.round(img.height * scale));
+
+    function encode(bitmap: ImageBitmap | HTMLImageElement, w: number, h: number) {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas indisponible"));
+        ctx.drawImage(bitmap, 0, 0, w, h);
+        if (typeof (bitmap as ImageBitmap).close === "function") (bitmap as ImageBitmap).close();
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      } catch (e: any) {
+        reject(new Error("Photo trop lourde pour cet appareil — choisis-en une plus légère (galerie)."));
+      }
+    }
+
+    if (typeof createImageBitmap === "function" && "createImageBitmap" in window) {
+      createImageBitmap(file, { resizeWidth: max, resizeHeight: max, resizeQuality: "high" })
+        .then((bm) => {
+          const scale = Math.min(1, max / Math.max(bm.width, bm.height));
+          const w = Math.max(1, Math.round(bm.width * scale));
+          const h = Math.max(1, Math.round(bm.height * scale));
+          encode(bm, w, h);
+        })
+        .catch(() => legacyPath(file, max, resolve, reject));
+    } else {
+      legacyPath(file, max, resolve, reject);
+    }
+  });
+}
+
+function legacyPath(
+  file: File,
+  max: number,
+  resolve: (v: string) => void,
+  reject: (e: Error) => void
+) {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error("Image illisible — essaie une autre photo"));
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      try {
         const canvas = document.createElement("canvas");
         canvas.width = w;
         canvas.height = h;
@@ -21,11 +61,13 @@ export function pickPhoto(file: File | undefined, max: number): Promise<string> 
         if (!ctx) return reject(new Error("Canvas indisponible"));
         ctx.drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", 0.72));
-      };
-      img.src = String(reader.result);
+      } catch {
+        reject(new Error("Photo trop lourde pour cet appareil — choisis-en une plus légère (galerie)."));
+      }
     };
-    reader.readAsDataURL(file);
-  });
+    img.src = String(reader.result);
+  };
+  reader.readAsDataURL(file);
 }
 
 type Props = {
