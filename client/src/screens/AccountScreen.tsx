@@ -262,6 +262,9 @@ export default function AccountScreen() {
   const [switchTarget, setSwitchTarget] = useState<{ phone: string; label: string } | null>(null);
   const [switchPassword, setSwitchPassword] = useState("");
   const [showSettle, setShowSettle] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletePw, setDeletePw] = useState("");
+  const [busyDelete, setBusyDelete] = useState(false);
 
   const isSeller = user?.role === "producer";
   const isCourier = user?.role === "courier";
@@ -353,6 +356,32 @@ export default function AccountScreen() {
     setUser(null);
     setOffers([]);
     setMyOffers([]);
+  }
+
+  // Suppression définitive du compte (exigence Google Play). Le mot de passe est
+  // re-vérifié côté serveur, puis toutes les données personnelles sont effacées.
+  async function doDeleteAccount(e: React.FormEvent) {
+    e.preventDefault();
+    if (!deletePw) return showToast("Saisis ton mot de passe pour confirmer");
+    setBusyDelete(true);
+    try {
+      await data.deleteAccount(deletePw);
+      await data.logout();
+      setUser(null);
+      setOffers([]);
+      setMyOffers([]);
+      setNotifications([]);
+      setUnseen(0);
+      clearCart();
+      setConfirmDelete(false);
+      setDeletePw("");
+      showToast("Compte supprimé. À bientôt 👋");
+      navigate("/");
+    } catch (err: any) {
+      showToast(err.message || "Suppression impossible");
+    } finally {
+      setBusyDelete(false);
+    }
   }
 
   // Changer de compte PAR AUTHENTIFICATION : on déconnecte le compte courant
@@ -849,6 +878,43 @@ export default function AccountScreen() {
       <button className="btn btn-ghost" style={{ marginTop: 12, width: "100%" }} onClick={logout} disabled={busySwitch}>
         {t("account.logout", lang)}
       </button>
+
+      <p className="section-label" style={{ marginTop: 18 }}>Supprimer mon compte</p>
+      <p style={{ fontSize: 11, color: "var(--muted)", margin: "-6px 2px 8px" }}>
+        La suppression est définitive : ton nom, ton numéro, tes messages et tes annonces sont effacés.
+        Les paiements déjà effectués restent conservés pour la comptabilité. Tu ne pourras plus te reconnecter.
+      </p>
+      <button
+        className="btn btn-danger-ghost"
+        style={{ width: "100%" }}
+        disabled={busyDelete}
+        onClick={() => setConfirmDelete((v) => !v)}
+      >
+        {confirmDelete ? "Fermer" : "🗑️ Supprimer mon compte"}
+      </button>
+      {confirmDelete && (
+        <form className="card" style={{ marginTop: 8, padding: 12 }} onSubmit={doDeleteAccount}>
+          <p style={{ margin: "0 0 8px", fontSize: 12 }}>
+            Saisis ton mot de passe pour confirmer la suppression <b>définitive</b> de ton compte.
+          </p>
+          <div className="field">
+            <label>Mot de passe</label>
+            <input
+              type="password"
+              value={deletePw}
+              autoFocus
+              placeholder="Ton mot de passe"
+              onChange={(e) => setDeletePw(e.target.value)}
+            />
+          </div>
+          <button className="btn btn-danger" style={{ width: "100%", opacity: busyDelete || !deletePw ? .6 : 1 }} disabled={busyDelete || !deletePw}>
+            {busyDelete ? "Suppression…" : "Supprimer définitivement mon compte"}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 6 }} onClick={() => setConfirmDelete(false)} disabled={busyDelete}>
+            Annuler
+          </button>
+        </form>
+      )}
     </>
   );
 }

@@ -41,6 +41,7 @@ function mapOffer(o: any): Offer {
     unit_price: Number(o.unit_price),
     status: o.status,
     created_at: o.created_at,
+    seller_id: o.seller_id,
     seller: o.seller,
     village: o.village,
     region: o.region,
@@ -607,5 +608,26 @@ export const demoBackend: DataBackend = {
 
   async adminSupportReply(threadId: string, body: string) {
     await api.post(`/admin/support/${threadId}/messages`, { body });
+  },
+
+  async deleteAccount(password: string) {
+    await api.post("/auth/delete-account", { password });
+  },
+
+  async reportOffer(offerId: string, reason: string, note?: string) {
+    await api.post(`/offers/${offerId}/report`, { reason, note });
+  },
+
+  async blockUser(userId: string) {
+    await api.post("/users/block", { userId });
+  },
+
+  async adminListReports() {
+    const res = await api.get<{ reports: import("./types").AdminReport[] }>("/admin/reports");
+    return res.reports ?? [];
+  },
+
+  async adminHandleReport(id: string, action: "remove" | "ignore") {
+    await api.post(`/admin/reports/${id}/handle`, { action });
   },
 };

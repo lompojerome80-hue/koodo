@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supprimer mon compte Koodo</title>
+  <style>
+    :root { --paper: #fdf8ee; --card: #ffffff; --ink: #1e1a12; --muted: #7a7263; --orange: #e8692f; --green: #2e7d5b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.55; }
+    header { background: var(--ink); color: #fff; padding: 22px 20px; }
+    header h1 { margin: 6px 0 0; font-size: 20px; }
+    header img { height: 34px; }
+    main { max-width: 640px; margin: 0 auto; padding: 22px 16px 48px; }
+    .card { background: var(--card); border-radius: 14px; padding: 18px; margin: 16px 0; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+    h3 { margin: 0 0 8px; }
+    p { margin: 8px 0; }
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li { counter-increment: step; position: relative; padding-left: 34px; margin: 10px 0; }
+    .steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 24px; height: 24px; border-radius: 50%; background: var(--orange); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+    .contact { background: #efe7d8; border-radius: 12px; padding: 14px; font-size: 14px; }
+    code { background: #f1ece1; padding: 2px 6px; border-radius: 6px; font-size: 13px; }
+    .muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>Koodo — marché &amp; livraison</div>
+    <h1>🗑️ Supprimer mon compte</h1>
+  </header>
+  <main>
+    <div class="card">
+      <h3>Comment supprimer définitivement votre compte Koodo</h3>
+      <p>Vous pouvez supprimer votre compte directement depuis l'application, en 4 étapes :</p>
+      <ol class="steps">
+        <li>Ouvrez l'application <b>Koodo</b> et connectez-vous.</li>
+        <li>Allez dans l'onglet <b>Mon compte</b>.</li>
+        <li>Faites défiler jusqu'à la zone <b>« Supprimer mon compte »</b> au bas de la page.</li>
+        <li>Saisissez votre mot de passe et confirmez. La suppression est immédiate et définitive.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>Que se passe-t-il après la suppression ?</h3>
+      <ul>
+        <li>Toutes vos <b>données personnelles</b> (nom, téléphone, e-mail, photos, position, messages, alertes) sont <b>effacées</b>.</li>
+        <li>Vos annonces sont supprimées (ou clôturées si elles ont donné lieu à un achat).</li>
+        <li>Vous ne pouvez plus vous connecter ni réutiliser l'application avec ce compte.</li>
+        <li>Certaines <b>données comptables</b> (transactions effectuées, commissions de livraison) sont conservées, comme l'exige la réglementation financière.</li>
+      </ul>
+      <p class="muted">La suppression est irréversible. Pensez à retirer les fonds en attente sur votre compte avant de supprimer.</p>
+    </div>
+
+    <div class="card">
+      <h3>Vous n'avez plus l'application ?</h3>
+      <p>Écrivez-nous pour demander la suppression de votre compte :</p>
+      <div class="contact">
+        📧 <b>contact.koodo@gmail.com</b><br />
+        📞 WhatsApp : <b>+226 70 06 00 06</b><br />
+        <span class="muted">Précisez le numéro de téléphone utilisé pour créer votre compte. La suppression sera traitée sous 48 h ouvrées.</span>
+      </div>
+    </div>
+
+    <p class="muted" style="text-align:center; margin-top: 24px;">Koodo · SOkOO SARL · Ouagadougou, Burkina Faso</p>
+  </main>
+</body>
+</html>

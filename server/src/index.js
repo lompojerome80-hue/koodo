@@ -19,6 +19,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import eventRoutes from "./routes/events.routes.js";
 import supportRoutes from "./routes/support.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import userRoutes from "./routes/user.routes.js";
 import { uploadsDir } from "./uploads.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +33,9 @@ app.use(express.json({ limit: "8mb" }));
 
 // Photos du dossier livreur (stockées sur nos serveurs : data/uploads).
 app.use("/uploads", express.static(uploadsDir));
+
+// Pages publiques (ex. /account-deletion.html exigée par Google Play).
+app.use(express.static(path.join(__dirname, "public")));
 
 if (app.get("env") === "production" && (process.env.JWT_SECRET || "") === "") {
   console.warn("⚠  JWT_SECRET non défini — Jeton signé avec la clé de développement par défaut. Définis JWT_SECRET en production.");
@@ -52,6 +56,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
 
 // Serve built client in production
 const clientDist = path.join(__dirname, "..", "..", "client", "dist");

@@ -152,4 +152,45 @@ router.post("/support/:id/messages", authRequired, adminOnly, (req, res) => {
   res.json({ ok: true, thread: supportInfo(t) });
 });
 
+// ---------- Modération des signalements d'annonces (UGC) ----------
+
+// Signalements d'annonces, avec l'offre concernée, le vendeur et le déclarant.
+router.get("/reports", authRequired, adminOnly, (_req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT r.id, r.offer_id, r.reason, r.note, r.status, r.created_at,
+              o.quantity, o.unit_price, o.status offer_status,
+              c.name crop_name, c.emoji,
+              u.full_name reporter_name, u.phone reporter_phone,
+              s.id seller_id, s.full_name seller_name, s.phone seller_phone
+       FROM reports r
+       JOIN offers o ON o.id = r.offer_id
+       JOIN crops c ON c.id = o.crop_id
+       JOIN users u ON u.id = r.reporter_id
+       JOIN users s ON s.id = o.user_id
+       ORDER BY CASE WHEN r.status = 'open' THEN 0 ELSE 1 END, datetime(r.created_at) DESC`
+    )
+    .all();
+  res.json({ reports: rows });
+});
+
+// Traiter un signalement : "remove" retire l'annonce du marché (status
+// 'cancelled', invisible des listes), "ignore" la classe sans suite.
+router.post("/reports/:id/handle", authRequired, adminOnly, (req, res) => {
+  const action = req.body?.action === "remove" ? "remove" : "ignore";
+  const report = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id);
+  if (!report) return res.status(404).json({ error: "Signalement introuvable" });
+  if (report.status !== "open") return res.status(409).json({ error: "Signalement déjà traité" });
+  db.transaction(() => {
+    if (action === "remove") {
+      db.prepare("UPDATE offers SET status = 'cancelled', updated_at = datetime('now') WHERE id = ? AND status = 'open'")
+        .run(report.offer_id);
+    }
+    db.prepare(
+      `UPDATE reports SET status = ?, handled_by = ?, handled_at = datetime('now','localtime') WHERE id = ?`
+    ).run(action === "remove" ? "handled" : "ignored", req.user.sub, report.id);
+  })();
+  res.json({ ok: true });
+});
+
 export default router;

@@ -237,6 +237,35 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_support_messages_thread ON support_messages (thread_id, created_at ASC);
 
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, seen, created_at DESC);
+
+  -- Signalements d'annonces (modération UGC — exigence Google Play) : un membre
+  -- signale une annonce abusive/frauduleuse ; l'admin la retire ou la maintient.
+  CREATE TABLE IF NOT EXISTS reports (
+    id          TEXT PRIMARY KEY,
+    offer_id    TEXT NOT NULL REFERENCES offers(id),
+    reporter_id TEXT NOT NULL REFERENCES users(id),
+    reason      TEXT NOT NULL,
+    note        TEXT,
+    status      TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','handled','ignored')),
+    handled_by  TEXT,
+    handled_at  TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    UNIQUE (offer_id, reporter_id)
+  );
+
+  -- Blocage utilisateur : le contenu et les messages d'une partie bloquée ne
+  -- doivent plus apparaître à l'autre. Directionnel (A bloque B n'implique pas
+  -- B bloque A).
+  CREATE TABLE IF NOT EXISTS blocks (
+    blocker_id TEXT NOT NULL REFERENCES users(id),
+    blocked_id TEXT NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (blocker_id, blocked_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_reports_offer ON reports (offer_id);
+  CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks (blocked_id);
 `);
 
 // Migration : colonnes livraison / quantité / escrow des transactions (bases créées avant)
@@ -371,6 +400,23 @@ for (const col of [
   ["doc_updated_at", "TEXT"],
 ]) {
   if (!userColsV2.includes(col[0])) {
+    try {
+      db.exec(`ALTER TABLE users ADD COLUMN ${col[0]} ${col[1]}`);
+    } catch {
+      /* déjà présent */
+    }
+  }
+}
+
+// Migration : suppression de compte (anonymisation — exigence Google Play).
+// Une fois supprimé, le compte est neutralisé mais sa ligne reste (contraintes
+// FK des transactions/délivrances) : anonymized=1 empêche toute réactivation.
+const userColsV3 = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+for (const col of [
+  ["anonymized", "INTEGER NOT NULL DEFAULT 0"],
+  ["deleted_at", "TEXT"],
+]) {
+  if (!userColsV3.includes(col[0])) {
     try {
       db.exec(`ALTER TABLE users ADD COLUMN ${col[0]} ${col[1]}`);
     } catch {

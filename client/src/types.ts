@@ -255,6 +255,7 @@ export interface Offer {
   unit_price: number;
   status: "open" | "sold" | "cancelled" | "pending";
   created_at: string;
+  seller_id?: string;
   seller?: string;
   village?: string;
   region?: string;

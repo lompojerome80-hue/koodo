@@ -2,6 +2,7 @@ import { Router } from "express";
 import { nanoid } from "nanoid";
 import db from "../db.js";
 import { authRequired } from "../auth.js";
+import { notifyUser } from "../notify.js";
 
 const router = Router();
 
@@ -53,11 +54,13 @@ router.get("/", authRequired, (req, res) => {
   }
   const rows = db.prepare(
     `SELECT o.id, o.crop_id, o.quantity, o.unit_price, o.status, o.created_at, o.location_lat, o.location_lng, o.image,
-            c.name crop_name, c.emoji, u.full_name seller, u.village, u.region
+            c.name crop_name, c.emoji, u.id seller_id, u.full_name seller, u.village, u.region
      FROM offers o JOIN crops c ON c.id=o.crop_id JOIN users u ON u.id=o.user_id
      WHERE o.status='open'
+       AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id=? AND b.blocked_id=o.user_id)
+       AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocked_id=? AND b.blocker_id=o.user_id)
      ORDER BY datetime(o.created_at) DESC`
-  ).all();
+  ).all(req.user.sub, req.user.sub);
   res.json(rows);
 });
 
@@ -105,5 +108,33 @@ function getOffer(id) {
      JOIN crops c ON c.id=o.crop_id JOIN users u ON u.id=o.user_id WHERE o.id=?`
   ).get(id);
 }
+
+// Un acheteur signale une annonce (contenu abusif, fraude, hors-liste…).
+// L'annonce reste visible tant que l'admin n'a pas statué (modération UGC).
+router.post("/:id/report", authRequired, (req, res) => {
+  const offer = db.prepare("SELECT id, user_id FROM offers WHERE id=? AND status='open'").get(req.params.id);
+  if (!offer) return res.status(404).json({ error: "Annonce introuvable ou clôturée" });
+  if (offer.user_id === req.user.sub) return res.status(403).json({ error: "Impossible de signaler sa propre annonce" });
+  const reason = String(req.body?.reason || "").trim().slice(0, 200);
+  const note = String(req.body?.note || "").trim().slice(0, 500);
+  if (!reason) return res.status(400).json({ error: "Raison du signalement requise" });
+  const existing = db.prepare("SELECT id FROM reports WHERE offer_id=? AND reporter_id=?").get(offer.id, req.user.sub);
+  if (existing) return res.status(409).json({ error: "Annonce déjà signalée par toi — l'équipe s'en occupe" });
+  db.prepare(
+    `INSERT INTO reports (id, offer_id, reporter_id, reason, note) VALUES (?,?,?,?,?)`
+  ).run(nanoid(), offer.id, req.user.sub, reason, note || null);
+  // Préviens les administrateurs pour une modération rapide.
+  const reporter = db.prepare("SELECT full_name FROM users WHERE id=?").get(req.user.sub);
+  const admins = db.prepare("SELECT id FROM users WHERE role='admin' AND anonymized=0").all();
+  for (const a of admins) {
+    notifyUser(a.id, {
+      kind: "report",
+      title: "Nouveau signalement d'annonce",
+      body: `${reporter?.full_name || "Un membre"} a signalé une annonce : « ${reason} »`,
+      offer_id: offer.id,
+    });
+  }
+  res.status(201).json({ ok: true });
+});
 
 export default router;

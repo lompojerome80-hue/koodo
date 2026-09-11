@@ -274,6 +274,20 @@ export interface DataBackend {
   adminSupportMessages(threadId: string): Promise<SupportMsg[]>;
   /** Réponse du service technique. */
   adminSupportReply(threadId: string, body: string): Promise<void>;
+
+  // ============================================================
+  // Conformité & modération (Google Play)
+  // ============================================================
+  /** Supprime définitivement le compte (anonymisation) — vérifie le mot de passe. */
+  deleteAccount(password: string): Promise<void>;
+  /** Signale une annonce (contenu abusif, fraude…). Raison courte obligatoire. */
+  reportOffer(offerId: string, reason: string, note?: string): Promise<void>;
+  /** Bloque un utilisateur : ses annonces et messages disparaissent de ton écran. */
+  blockUser(userId: string): Promise<void>;
+  /** Console admin : signalements d'annonces en attente. */
+  adminListReports(): Promise<AdminReport[]>;
+  /** Console admin : traiter un signalement (remove = retirer l'annonce, ignore = classer sans suite). */
+  adminHandleReport(id: string, action: "remove" | "ignore"): Promise<void>;
 }
 
 export interface SupportThread {
@@ -298,4 +312,24 @@ export interface SupportMsg {
 export interface AdminSupportThread extends SupportThread {
   full_name: string;
   phone: string;
+}
+
+/** Signalement d'annonce remonté à la console admin (modération UGC). */
+export interface AdminReport {
+  id: string;
+  offer_id: string;
+  reason: string;
+  note?: string | null;
+  status: "open" | "handled" | "ignored";
+  created_at: string;
+  emoji?: string;
+  crop_name: string;
+  offer_status: string;
+  quantity: number;
+  unit_price: number;
+  reporter_name: string;
+  reporter_phone: string;
+  seller_id: string;
+  seller_name: string;
+  seller_phone: string;
 }

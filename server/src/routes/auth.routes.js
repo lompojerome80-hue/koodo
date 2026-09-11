@@ -340,4 +340,56 @@ router.patch("/me", authRequired, (req, res) => {
   res.json({ user: safeUser(user) });
 });
 
+// ============================================================
+// Suppression du compte (exigence Google Play).
+// Le compte est anonymisé de façon irréversible : plus aucune donnée
+// identifiante n'est conservée et le numéro de téléphone est libéré (possible
+// réinscription). Les lignes financières (transactions, courses, dûs) sont
+// conservées pour la comptabilité, comme l'exige la réglementation.
+// ============================================================
+router.post("/delete-account", authRequired, (req, res) => {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: "Mot de passe requis pour supprimer le compte" });
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.sub);
+  if (!user) return res.status(404).json({ error: "Compte introuvable" });
+  if (user.anonymized) return res.status(409).json({ error: "Compte déjà supprimé" });
+  if (!bcrypt.compareSync(password, user.password)) {
+    return res.status(401).json({ error: "Mot de passe incorrect" });
+  }
+  const id = user.id;
+  db.transaction(() => {
+    // Demandes d'aide, alertes, cloche, file de synchro : purge totale.
+    db.prepare("DELETE FROM support_messages WHERE sender_id = ?").run(id);
+    db.prepare("DELETE FROM support_threads WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM notifications WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM alerts WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM sync_queue WHERE user_id = ?").run(id);
+    // Signalements émis par l'utilisateur et reçus sur ses annonces.
+    db.prepare("DELETE FROM reports WHERE reporter_id = ?").run(id);
+    db.prepare("DELETE FROM reports WHERE offer_id IN (SELECT id FROM offers WHERE user_id = ?)").run(id);
+    // Notifications liées aux annonces de l'utilisateur (ex. commande passée par
+    // un acheteur) — les offres étant supprimées, ces références sauteraient.
+    db.prepare("DELETE FROM notifications WHERE offer_id IN (SELECT id FROM offers WHERE user_id = ?)").run(id);
+    // Messages envoyés + annonces sans transaction (les annonces achetées sont
+    // conservées clôturées, car les transactions y font référence).
+    db.prepare("DELETE FROM messages WHERE sender_id = ?").run(id);
+    db.prepare(
+      `DELETE FROM offers WHERE user_id = ? AND id NOT IN (SELECT DISTINCT offer_id FROM transactions WHERE offer_id IS NOT NULL)`
+    ).run(id);
+    db.prepare("UPDATE offers SET status = 'cancelled', updated_at = datetime('now') WHERE user_id = ? AND status = 'open'").run(id);
+    // Blocages : plus d'objet après la suppression.
+    db.prepare("DELETE FROM blocks WHERE blocker_id = ? OR blocked_id = ?").run(id, id);
+    // Anonymisation : identité neutralisée, numéro libéré, compte inactivable.
+    db.prepare(
+      `UPDATE users SET full_name = 'Compte supprimé', phone = ?, password = ?, email = NULL, avatar = NULL,
+         region = NULL, village = NULL, locality = NULL, transport = NULL,
+         selfie = NULL, id_front = NULL, id_back = NULL, ussd_code = NULL, google_uid = NULL,
+         anonymized = 1, deleted_at = datetime('now','localtime'),
+         blocked = 1, blocked_reason = 'Compte supprimé par l''utilisateur'
+       WHERE id = ?`
+    ).run(`deleted_${id}`, bcrypt.hashSync(nanoid(32), 10), id);
+  })();
+  res.json({ ok: true });
+});
+
 export default router;

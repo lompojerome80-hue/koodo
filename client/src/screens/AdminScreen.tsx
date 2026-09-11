@@ -3,7 +3,7 @@ import { useApp } from "../store";
 import { useToast } from "../hooks/useToast";
 import { data } from "../data";
 import type { AdminCourier, AdminPayment } from "../types";
-import type { AdminSupportThread, SupportMsg } from "../db/types";
+import type { AdminSupportThread, SupportMsg, AdminReport } from "../db/types";
 
 function fmtF(n: number): string {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -20,6 +20,8 @@ export default function AdminScreen() {
   const [supportMsgs, setSupportMsgs] = useState<SupportMsg[]>([]);
   const [supportReply, setSupportReply] = useState<string>("");
   const [busyReply, setBusyReply] = useState(false);
+  const [reports, setReports] = useState<AdminReport[]>([]);
+  const [busyReport, setBusyReport] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -36,6 +38,11 @@ export default function AdminScreen() {
       setSupport(await data.adminSupportList());
     } catch {
       setSupport([]);
+    }
+    try {
+      setReports((await data.adminListReports()).filter((r) => r.status === "open"));
+    } catch {
+      setReports([]);
     }
   }
 
@@ -160,6 +167,80 @@ export default function AdminScreen() {
           </div>
         ))}
       </div>
+
+      <p className="section-label">Signalements d'annonces <span className="count">{reports.length}</span></p>
+      <p style={{ fontSize: 11, color: "var(--muted)", margin: "-6px 2px 8px" }}>
+        Un membre signale une annonce. « Retirer » la masque du marché, « Ignorer » la classe sans suite.
+      </p>
+      {reports.length === 0 ? (
+        <div className="empty" style={{ padding: "14px 12px" }}>
+          <div className="icon" style={{ fontSize: 22 }}>🚩</div>
+          <p>Aucun signalement en attente.</p>
+        </div>
+      ) : (
+        <div className="list">
+          {reports.map((r) => (
+            <div key={r.id} className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <b style={{ fontSize: 13 }}>
+                  {r.emoji} {r.crop_name} · {fmtF(r.quantity)} kg
+                </b>
+                <span className="pill pending">{r.status}</span>
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: 12 }}>
+                🚩 <b>{r.reason}</b>
+                {r.note && <span style={{ color: "var(--muted)" }}> — {r.note}</span>}
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                👤 Vendeur : <b style={{ color: "var(--ink)" }}>{r.seller_name}</b> {r.seller_phone} · {fmtF(r.unit_price)} F/kg
+              </p>
+              <p style={{ margin: "2px 0 6px", fontSize: 11, color: "var(--muted2)" }}>
+                Signalé par {r.reporter_name} ({r.reporter_phone}) le {r.created_at || ""}
+              </p>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  className="btn btn-danger btn-sm"
+                  style={{ flex: 1, opacity: busyReport === r.id ? .7 : 1 }}
+                  disabled={busyReport === r.id}
+                  onClick={async () => {
+                    setBusyReport(r.id);
+                    try {
+                      await data.adminHandleReport(r.id, "remove");
+                      showToast("Annonce retirée du marché ✓");
+                      await load();
+                    } catch (err: any) {
+                      showToast(err.message || "Action impossible");
+                    } finally {
+                      setBusyReport(null);
+                    }
+                  }}
+                >
+                  {busyReport === r.id ? "…" : "Retirer l'annonce"}
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ flex: 1, opacity: busyReport === r.id ? .7 : 1 }}
+                  disabled={busyReport === r.id}
+                  onClick={async () => {
+                    setBusyReport(r.id);
+                    try {
+                      await data.adminHandleReport(r.id, "ignore");
+                      showToast("Signalement classé sans suite");
+                      await load();
+                    } catch (err: any) {
+                      showToast(err.message || "Action impossible");
+                    } finally {
+                      setBusyReport(null);
+                    }
+                  }}
+                >
+                  {busyReport === r.id ? "…" : "Ignorer"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <p className="section-label">Demandes d'aide <span className="count">{support.length}</span></p>
       <p style={{ fontSize: 11, color: "var(--muted)", margin: "-6px 2px 8px" }}>

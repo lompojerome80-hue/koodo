@@ -12,9 +12,46 @@ function OfferCard({ o }: { o: Offer }) {
   const showToast = useToast((s) => s.show);
   const navigate = useNavigate();
   const isBuyer = user?.role === "buyer";
+  const isOwn = user?.id && o.seller_id === user.id;
   const [qty, setQty] = useState(1);
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [busyReport, setBusyReport] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   const buy = () => navigate(`/payer/${o.id}`, { state: { qtyKg: qty } });
+
+  async function submitReport() {
+    if (!reason) return showToast("Choisis une raison du signalement");
+    setBusyReport(true);
+    try {
+      await data.reportOffer(o.id, reason, note);
+      showToast("Annonce signalée — l'équipe Koodo va vérifier ✓");
+      setReporting(false);
+      setReason("");
+      setNote("");
+    } catch (err: any) {
+      showToast(err.message || "Signalement impossible");
+    } finally {
+      setBusyReport(false);
+    }
+  }
+
+  async function blockSeller() {
+    if (!o.seller_id) return;
+    if (!window.confirm(`Bloquer ${o.seller || "ce vendeur"} ?\nSes annonces et messages disparaîtront de ton écran.`)) return;
+    setBlocking(true);
+    try {
+      await data.blockUser(o.seller_id);
+      useApp.getState().setOffers(useApp.getState().offers.filter((x) => x.seller_id !== o.seller_id));
+      showToast("Vendeur bloqué — annonces masquées");
+    } catch (err: any) {
+      showToast(err.message || "Blocage impossible");
+    } finally {
+      setBlocking(false);
+    }
+  }
 
   return (
     <div className="card offer-card hover">
@@ -60,6 +97,56 @@ function OfferCard({ o }: { o: Offer }) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
             Écrire
           </button>
+        )}
+        {!isOwn && (
+          <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+            <button
+              className="btn btn-danger-ghost btn-sm"
+              style={{ flex: 1, minWidth: 0 }}
+              onClick={() => setReporting((v) => !v)}
+            >
+              🚩 {reporting ? "Fermer" : "Signaler"}
+            </button>
+            <button
+              className="btn btn-danger-ghost btn-sm"
+              style={{ flex: 1, minWidth: 0 }}
+              disabled={blocking || !o.seller_id}
+              onClick={blockSeller}
+            >
+              {blocking ? "…" : "🔕 Bloquer"}
+            </button>
+          </div>
+        )}
+        {reporting && (
+          <div style={{ marginTop: 6 }}>
+            <select
+              style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--paper)", color: "var(--ink)", fontFamily: "inherit", fontSize: 13, boxSizing: "border-box" }}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            >
+              <option value="">Pourquoi signaler ?</option>
+              <option value="Prix abusif">Prix abusif</option>
+              <option value="Produit inexistant">Produit inexistant</option>
+              <option value="Arnaque / fraude">Arnaque / fraude</option>
+              <option value="Contenu inapproprié">Contenu inapproprié</option>
+              <option value="Annonce hors-liste">Annonce hors-liste</option>
+              <option value="Autre">Autre</option>
+            </select>
+            <textarea
+              style={{ height: 44, width: "100%", marginTop: 6, padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--paper)", color: "var(--ink)", fontFamily: "inherit", fontSize: 12, boxSizing: "border-box", resize: "none" }}
+              placeholder="Détails (facultatif)…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <button
+              className="btn btn-danger btn-sm"
+              style={{ width: "100%", marginTop: 6, opacity: busyReport || !reason ? .6 : 1 }}
+              disabled={busyReport || !reason}
+              onClick={submitReport}
+            >
+              {busyReport ? "Envoi…" : "Envoyer le signalement"}
+            </button>
+          </div>
         )}
       </div>
     </div>

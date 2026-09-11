@@ -8,13 +8,21 @@ import { saveAudio } from "../uploads.js";
 
 const router = Router();
 
+// Un blocage (dans un sens ou dans l'autre) masque la conversation.
+function isBlocked(me, them) {
+  return (
+    !!db.prepare("SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?").get(me, them) ||
+    !!db.prepare("SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?").get(them, me)
+  );
+}
+
 router.get("/threads", authRequired, (req, res) => {
   const rows = db.prepare(
     `SELECT m.id, m.offer_id,
             CASE WHEN m.kind='voice' THEN '🎤 Message vocal' ELSE m.body END AS body,
             m.kind, m.audio_url, m.duration_ms, m.sender_id, m.created_at,
             o.crop_id, c.name crop_name, c.emoji, o.quantity, o.unit_price,
-            other.full_name other_name, other.role other_role,
+            other.full_name other_name, other.role other_role, other.id other_id,
             (SELECT COUNT(*) FROM messages sub
               WHERE sub.offer_id = m.offer_id AND sub.sender_id <> ? AND sub.seen = 0) AS unread
      FROM messages m
@@ -25,7 +33,17 @@ router.get("/threads", authRequired, (req, res) => {
      WHERE m.sender_id=? OR o.user_id=?
      ORDER BY datetime(m.created_at) DESC`,
   ).all(req.user.sub, req.user.sub, req.user.sub, req.user.sub);
-  res.json(rows.map((r) => ({ ...r, unread: Number(r.unread) || 0 })));
+  const blocked = new Set(
+    db.prepare("SELECT blocked_id FROM blocks WHERE blocker_id=?").all(req.user.sub).map((b) => b.blocked_id)
+  );
+  const blockedBy = new Set(
+    db.prepare("SELECT blocker_id FROM blocks WHERE blocked_id=?").all(req.user.sub).map((b) => b.blocker_id)
+  );
+  res.json(
+    rows
+      .filter((r) => !blocked.has(r.other_id) && !blockedBy.has(r.other_id))
+      .map((r) => ({ ...r, unread: Number(r.unread) || 0 }))
+  );
 });
 
 router.get("/:offerId", authRequired, (req, res) => {
@@ -33,6 +51,15 @@ router.get("/:offerId", authRequired, (req, res) => {
   if (!offer) return res.status(404).json({ error: "annonce introuvable" });
   if (offer.user_id !== req.user.sub && req.user.role !== "buyer" && req.user.role !== "admin") {
     return res.status(403).json({ error: "non autorisé" });
+  }
+  // Bloquer impose le silence : la conversation entière disparaît.
+  if (offer.user_id !== req.user.sub) {
+    if (isBlocked(req.user.sub, offer.user_id)) return res.status(403).json({ error: "Conversation masquée" });
+  } else {
+    const others = db
+      .prepare("SELECT DISTINCT sender_id FROM messages WHERE offer_id=? AND sender_id<>?")
+      .all(req.params.offerId, req.user.sub);
+    if (others.some((o) => isBlocked(req.user.sub, o.sender_id))) return res.status(403).json({ error: "Conversation masquée" });
   }
   const msgs = db.prepare(
     `SELECT m.*, u.full_name sender_name FROM messages m JOIN users u ON u.id=m.sender_id
@@ -49,6 +76,9 @@ router.post("/:offerId", authRequired, (req, res) => {
   if (!offer) return res.status(404).json({ error: "annonce introuvable" });
 
   const recipientId = counterpartOf(db, offer, req.user.sub);
+  if (recipientId && recipientId !== req.user.sub && isBlocked(req.user.sub, recipientId)) {
+    return res.status(403).json({ error: "Impossible d'écrire à cet utilisateur (blocage)" });
+  }
 
   let audioUrl = null;
   let durationMs = null;

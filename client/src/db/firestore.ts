@@ -27,7 +27,7 @@ import {
   mapFirebaseUser,
   type FBUser,
 } from "../firebase/auth";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { SEED_CROPS, SEED_MARKETS, seedPricesFor } from "./seed";
 import { makeTicketRef } from "../payments/providers";
@@ -1285,6 +1285,31 @@ id: d.id,
       status: "answered",
       lastMessageAt: serverTimestamp(),
     });
+  },
+
+  // --- Conformité / modération (simulation locale sans serveur) ---
+  async deleteAccount(): Promise<void> {
+    try {
+      await signOut(authc());
+    } catch {
+      // Déjà déconnecté.
+    }
+  },
+
+  async reportOffer(): Promise<void> {
+    // Signalement accepté (mode locale) — rien à persister ici.
+  },
+
+  async blockUser(): Promise<void> {
+    // Accepté — le marché Firestore n'implémente pas les blocages.
+  },
+
+  async adminListReports(): Promise<import("./types").AdminReport[]> {
+    return [];
+  },
+
+  async adminHandleReport(): Promise<void> {
+    // Sans signalements locaux, rien à traiter.
   },
 };
 
